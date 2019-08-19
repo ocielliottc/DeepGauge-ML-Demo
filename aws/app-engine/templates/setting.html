@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block content %}
+<div id="content">
+  <nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <div class="container-fluid">
+      <a href="{{ url_for('root') }}">
+        <i class="fas fa-chevron-left"></i>
+        Back to Dashboard
+      </a>
+    </div>
+  </nav>
+  <article class="container-fluid">
+    <section class="row">
+      <div class="col-6">
+        <h2>Application Settings</h2>
+        <form>
+          <div class="form-group">
+            <label for="default_device_type">Default Device Type</label>
+            <select class="form-control" id="default_device_type">
+              <option>Choose...</option>
+              <option value="camera">Camera</option>
+              <option value="gauge" selected>Gauge</option>
+              <option value="raspberry_pi">RaspberryPi</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="default_framerate">Default Framerate</label>
+            <select class="form-control" id="default_framerate">
+              <option>Choose...</option>
+              <option value="15" selected>15</option>
+              <option value="30">30</option>
+              <option value="60">60</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="default_refresh_rate">Default Refresh Rate</label>
+            <select class="form-control" id="default_refresh_rate">
+              <option>Choose...</option>
+              <option value="30" selected>30 seconds</option>
+              <option value="60">1 minutes</option>
+              <option value="300">5 minutes</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary">Submit</button>
+        </form>
+      </div>
+    </section>
+  </article>
+</div>
+{% endblock %}

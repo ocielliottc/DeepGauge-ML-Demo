@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div id="content">
+    <article class="container-fluid">
+      <section class="row">
+        {% if devices %}
+            {% for device in devices %}
+            <div class="col-xs-12 col-sm-4 mt-3">
+              <div class="card">
+                {% if device.image %}
+                <img class="card-img-top" src="{{ device.image }}" alt="Card image cap">
+                {% endif %}
+                <div class="card-body">
+                  <h5 class="card-title">Device {{ device.id }}</h5>
+                  <p class="d-flex justify-content-between align-items-center">
+                    Prediction
+                    <span class="badge badge-primary badge-pill">{{ device.prediction }}</span>
+                  </p>
+                  <small>Updated: {{ device.updated }}</small>
+                  <hr/>
+                  <a href="./device/{{ device.id }}" class="btn btn-primary">View Device</a>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p class="lead">No Devices :(</p>
+        {% endif %}
+      </section>
+    </article>
+</div>
+</div>
+{% endblock %}
