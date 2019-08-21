@@ -13,7 +13,7 @@
     <section class="row">
       <div class="col-6">
         <h2>Application Settings</h2>
-        <form action="/setting" method="POST">
+        <form action="{{ url_for('setting') }}" method="POST">
           <div class="form-group">
             <label for="default_device_type">Default Device Type</label>
             <select class="form-control" name="device_type">

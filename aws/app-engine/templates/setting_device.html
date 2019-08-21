@@ -17,7 +17,7 @@
     </section>
     <section class="row">
       <div class="col-6">
-        <form action="/device/setting/{{device.id}}" method="POST">
+        <form action="{{ url_for('show_device_setting', device_id=device.id) }}" method="POST">
           <div class="form-group">
             <label>Device Name</label>
             <input type="text" class="form-control" name="name" value="{% if device.name == "" %}Device {{ device.id }}{% else %}{{ device.name }}{% endif %}">
