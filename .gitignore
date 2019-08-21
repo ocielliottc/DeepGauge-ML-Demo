@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Created by .ignore support plugin (hsz.mobi)
 ### Example user template template
 ### Example user template
@@ -72,8 +71,6 @@ gen
 ||||||| merged common ancestors
 .idea/
 *.pyc
-=======
 google-cloud-vision-api/*
 test-shadow-removal/*
->>>>>>> master
-
+aws/app-engine/static/img/live_device*.png
