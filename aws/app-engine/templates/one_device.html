@@ -13,7 +13,11 @@
     <section class="row">
       <div class="col-6">
         <h2>
-          Device {{device.id}}
+          {% if device.name == "" %}
+          Device {{ device.id }}
+          {% else %}
+          {{ device.name }}
+          {% endif %}
           <a class="float-right" href = {{ url_for('show_device_setting', device_id=device.id) }}>
             <i class="fas fa-cog"></i>
           </a>

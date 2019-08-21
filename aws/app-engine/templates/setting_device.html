@@ -12,12 +12,16 @@
   <article class="container-fluid">
     <section class="row">
       <div class="col-12">
-        <h2>Device {{device.id}} Setting</h2>
+        <h2>New Device</h2>
       </div>
     </section>
     <section class="row">
       <div class="col-6">
-        <form>
+        <form action="/device/setting/{{device.id}}" method="POST">
+          <div class="form-group">
+            <label>Device Name</label>
+            <input type="text" class="form-control" name="name" value="{% if device.name == "" %}Device {{ device.id }}{% else %}{{ device.name }}{% endif %}">
+          </div>
           <div class="form-group">
             <label for="url">URL</label>
             <div class="input-group mb-3">
@@ -29,36 +33,36 @@
           </div>
           <div class="form-group">
             <label for="url">Device Type</label>
-            <select class="custom-select" id="inputGroupSelect01">
+            <select class="custom-select" name="device_type">
               <option>Choose...</option>
-              <option value="camera">Camera</option>
-              <option value="gauge" selected>Gauge</option>
-              <option value="raspberry_pi">RaspberryPi</option>
+              <option value="Camera"{% if device.type == "Camera" %} selected{% endif %}>Camera</option>
+              <option value="Gauge"{% if device.type == "Gauge" %} selected{% endif %}>Gauge</option>
+              <option value="RaspberryPi"{% if device.type == "RaspberryPi" %} selected{% endif %}>RaspberryPi</option>
             </select>
           </div>
           <div class="form-group">
             <label for="url">Frame Rate</label>
-            <select class="custom-select" id="inputGroupSelect01">
+            <select class="custom-select" name="frame_rate">
               <option>Choose...</option>
-              <option value="15" selected>15</option>
-              <option value="30">30</option>
-              <option value="60">60</option>
+              <option value="15"{% if device.frame_rate == "15" %} selected{% endif %}>15</option>
+              <option value="30"{% if device.frame_rate == "30" %} selected{% endif %}>30</option>
+              <option value="60"{% if device.frame_rate == "60" %} selected{% endif %}>60</option>
             </select>
           </div>
           <div class="form-group">
           <label for="url">Refresh Rate</label>
-          <select class="custom-select" id="inputGroupSelect01">
+          <select class="custom-select" name="refresh_rate">
             <option>Choose...</option>
-            <option value="30" selected>30 seconds</option>
-            <option value="60">1 minutes</option>
-            <option value="300">5 minutes</option>
+            <option value="30"{% if device.refresh_rate == "30" %} selected{% endif %}>30 seconds</option>
+            <option value="60"{% if device.refresh_rate == "60" %} selected{% endif %}>1 minutes</option>
+            <option value="300"{% if device.refresh_rate == "300" %} selected{% endif %}>5 minutes</option>
           </select>
         </div>
         <div class="form-group">
           <label for="exampleFormControlTextarea1">Notes</label>
-          <textarea class="form-control" id="" rows="3">{{device.notes}}</textarea>
+          <textarea class="form-control" name="notes" rows="3">{{device.notes}}</textarea>
         </div>
-        <button type="button" class="btn btn-primary">Save</button>
+        <button type="submit" class="btn btn-primary">Save</button>
         <button type="button" class="btn btn-default ml-4">Delete</button>
       </form>
       </div>
