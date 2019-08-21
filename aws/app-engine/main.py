@@ -104,7 +104,7 @@ class RemoteDevice:
           print(err)
           pass
 
-        return readings;
+        return readings
 
     def update_live(self, name):
         if name is None or name is "":
@@ -139,7 +139,7 @@ class RemoteDevice:
           print(err)
           pass
 
-        return [value, percent];
+        return [value, percent]
 
 remote_device = RemoteDevice()
 
@@ -216,7 +216,7 @@ def make_database():
     db.session.commit()
 
     ## Once the device is created, the id has been populated
-    d.image = live_image_base + str(d.id) + '.png';
+    d.image = live_image_base + str(d.id) + '.png'
     db.session.commit()
 
     ## This should be done for all real devices.  The device name corresponds
@@ -322,7 +322,8 @@ def new_device():
     db.session.commit()
 
     ## Once the device is created, the id has been populated
-    device.image = live_image_base + str(device.id) + '.png';
+    device.image = live_image_base + str(device.id) + '.png'
+    device.name = 'Device' + str(device.id)
     db.session.commit()
 
     ## This should be done for all real devices.  The device name
