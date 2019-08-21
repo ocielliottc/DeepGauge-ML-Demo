@@ -77,59 +77,67 @@ class RemoteDevice:
 
     def get_readings(self, name):
         readings = {}
-        if name is None:
+        if name is None or name is "":
           return readings
 
-        timestamp = datetime.today().strftime('%Y-%m-%dT00:00:00')
-        shard_it = self.kinesis.get_shard_iterator(StreamName=name,
-                                                   ShardId='shardId-000000000000',
-                                                   ShardIteratorType='AT_TIMESTAMP',
-                                                   Timestamp=timestamp)['ShardIterator']
-        while True:
-            out = self.kinesis.get_records(ShardIterator=shard_it)
+        try:
+            timestamp = datetime.today().strftime('%Y-%m-%dT00:00:00')
+            shard_it = self.kinesis.get_shard_iterator(StreamName=name,
+                                                       ShardId='shardId-000000000000',
+                                                       ShardIteratorType='AT_TIMESTAMP',
+                                                       Timestamp=timestamp)['ShardIterator']
+            while True:
+                out = self.kinesis.get_records(ShardIterator=shard_it)
 
-            for o in out["Records"]:
-                key = o["ApproximateArrivalTimestamp"]
-                jdat = json.loads(o["Data"])
-                value = jdat['id']
-                percent = jdat['score']
-                readings[key] = [value, percent]
+                for o in out["Records"]:
+                    key = o["ApproximateArrivalTimestamp"]
+                    jdat = json.loads(o["Data"])
+                    value = jdat['id']
+                    percent = jdat['score']
+                    readings[key] = [value, percent]
 
-            if (out["MillisBehindLatest"] == 0):
-                break
-            else:
-                shard_it = out["NextShardIterator"]
+                if (out["MillisBehindLatest"] == 0):
+                    break
+                else:
+                    shard_it = out["NextShardIterator"]
+        except Exception as err:
+          print(err)
+          pass
 
         return readings;
 
     def update_live(self, name):
-        if name is None:
+        if name is None or name is "":
           return [0, 0]
 
         ## Get reading from Kinesis Data Stream
         value = 0
         percent = 0
 
-        ## There isn't an easy way to get the last entry in a Kinesis
-        ## Data Stream.  So, we are going to iterate over the values for the
-        ## day and take the last one we find.
-        timestamp = datetime.today().strftime('%Y-%m-%dT00:00:00')
-        shard_it = self.kinesis.get_shard_iterator(StreamName=name,
-                                                   ShardId='shardId-000000000000',
-                                                   ShardIteratorType='AT_TIMESTAMP',
-                                                   Timestamp=timestamp)['ShardIterator']
-        while True:
-            out = self.kinesis.get_records(ShardIterator=shard_it)
+        try:
+            ## There isn't an easy way to get the last entry in a Kinesis
+            ## Data Stream.  So, we are going to iterate over the values for the
+            ## day and take the last one we find.
+            timestamp = datetime.today().strftime('%Y-%m-%dT00:00:00')
+            shard_it = self.kinesis.get_shard_iterator(StreamName=name,
+                                                       ShardId='shardId-000000000000',
+                                                       ShardIteratorType='AT_TIMESTAMP',
+                                                       Timestamp=timestamp)['ShardIterator']
+            while True:
+                out = self.kinesis.get_records(ShardIterator=shard_it)
 
-            for o in out["Records"]:
-                jdat = json.loads(o["Data"])
-                value = jdat['id']
-                percent = jdat['score']
+                for o in out["Records"]:
+                    jdat = json.loads(o["Data"])
+                    value = jdat['id']
+                    percent = jdat['score']
 
-            if (out["MillisBehindLatest"] == 0):
-                break
-            else:
-                shard_it = out["NextShardIterator"]
+                if (out["MillisBehindLatest"] == 0):
+                    break
+                else:
+                    shard_it = out["NextShardIterator"]
+        except Exception as err:
+          print(err)
+          pass
 
         return [value, percent];
 
@@ -175,10 +183,6 @@ def make_database():
     # if os.path.exists("deepgauge.db"):
     #     os.remove("deepgauge.db")
 
-    # Create the initial live data image
-    device_id = 1
-    create_live_image(device_id, 0)
-
     # Create the database
     db.create_all()
 
@@ -187,7 +191,7 @@ def make_database():
     d = Device(
         id_user         = 1,
         name            = dev_name,
-        image           = live_image_base + str(device_id) + '.png',
+        image           = '',
         bucket          = "s3://{0}".format(bucket),
         type            = "RaspberryPi",
         location        = "St. Louis",
@@ -211,10 +215,16 @@ def make_database():
 
     db.session.commit()
 
+    ## Once the device is created, the id has been populated
+    d.image = live_image_base + str(d.id) + '.png';
+    db.session.commit()
+
     ## This should be done for all real devices.  The device name corresponds
     ## to the name provided during provisioning.
-    pull_reading(device_id)
-    scheduler.add_job(func=lambda: pull_reading(device_id), trigger="interval", seconds=int(d.refresh_rate))
+    pull_reading(d.id)
+    scheduler.add_job(func=lambda: pull_reading(d.id),
+                      trigger="interval", seconds=int(d.refresh_rate),
+                      id=str(d.id))
 
     return True
 
@@ -234,72 +244,6 @@ def root():
         data[idx]['updated'] = date_time_obj.strftime('%B %d, %Y, %H:%M:%S')
 
     return render_template('dashboard.html', devices=data)
-
-
-@app.route('/upload', methods=['GET', 'POST'])
-def upload():
-    if request.method == 'POST':
-        file = request.files['file']
-
-        ## Get the defaults from the database
-        settings = default_device_settings
-        query = Setting.query.one_or_none()
-        if query is not None:
-          settings['frame_rate'] = query.frame_rate
-          settings['refresh_rate'] = query.refresh_rate
-
-        # Create a new Device entry
-        schema = DeviceSchema()
-        device = Device(
-            id_user         = 1, #TODO request this from the Flask auth session - not implemented
-            name            = "",
-            image           = 'https://{0}.s3.{1}.amazonaws.com/{2}'.format(bucket, region, file.filename),
-            bucket          = "s3://{0}".format(bucket),
-            type            = "Gauge",
-            prediction      = "",
-            location        = "",  #TODO detect or update value from geo service
-            frame_rate      = settings['frame_rate'],
-            refresh_rate    = settings['refresh_rate'],
-            notes           = "",
-            high_threshold  = 15,
-            low_threshold   = 0
-        )
-
-        # Add the device to the database
-        db.session.add(device)
-        db.session.commit()
-
-        # Serialize and return the newly created person in the response
-        data = schema.dump(device)
-
-        # Work-around for s3.upload_fileobj().  Without this, the file
-        # upload will not happen.
-        file.stream.seek(0)
-
-        # Upload the image to storage bucket
-        s3 = boto3.client('s3')
-        s3.upload_fileobj(file, bucket, file.filename)
-        s3.put_object_acl(ACL='public-read',
-                          Bucket=bucket,
-                          Key=file.filename)
-
-        s3.put_object_tagging(Bucket=bucket,
-                              Key=file.filename,
-                              Tagging={
-                                'TagSet': [
-                                  {
-                                    'Key': 'device_id',
-                                    'Value': str(data['id'])
-                                  },
-                                  {
-                                    'Key': 'type',
-                                    'Value': 'Gauge'
-                                  }
-                                ]
-                              })
-
-        # Redirect to the device page.
-        return redirect("/device/setting/{}".format(data['id']), code=302)
 
 
 @app.route('/setting', methods=['GET', 'POST'])
@@ -349,7 +293,47 @@ def user():
 
 @app.route('/device/new')
 def new_device():
-    return render_template('new_device.html')
+    ## Get the defaults from the database
+    settings = default_device_settings
+    query = Setting.query.one_or_none()
+    if query is not None:
+      settings['frame_rate'] = query.frame_rate
+      settings['refresh_rate'] = query.refresh_rate
+
+    # Create a new Device entry
+    schema = DeviceSchema()
+    device = Device(
+        id_user         = 1, #TODO request this from the Flask auth session - not implemented
+        name            = "",
+        image           = '',
+        bucket          = "s3://{0}".format(bucket),
+        type            = "Gauge",
+        prediction      = "",
+        location        = "",  #TODO detect or update value from geo service
+        frame_rate      = settings['frame_rate'],
+        refresh_rate    = settings['refresh_rate'],
+        notes           = "",
+        high_threshold  = 15,
+        low_threshold   = 0
+    )
+
+    # Add the device to the database
+    db.session.add(device)
+    db.session.commit()
+
+    ## Once the device is created, the id has been populated
+    device.image = live_image_base + str(device.id) + '.png';
+    db.session.commit()
+
+    ## This should be done for all real devices.  The device name
+    ## corresponds to the name provided during provisioning.
+    pull_reading(device.id)
+    scheduler.add_job(func=lambda: pull_reading(device.id),
+                      trigger="interval", seconds=int(device.refresh_rate),
+                      id=str(device.id))
+
+    # Redirect to the device page.
+    return redirect("/device/setting/{}".format(device.id), code=302)
 
 @app.route('/device/<int:device_id>')
 def one_device(device_id):
