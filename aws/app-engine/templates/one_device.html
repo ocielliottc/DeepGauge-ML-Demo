@@ -55,6 +55,15 @@
 {% endblock %}
 
 {% block script %}
+<script>
+  function loadData(labels, data) {
+{% for key in rdata['readings'] %}
+    labels.push('{{ key }}');
+    data.push({{ rdata['readings'][key] }});
+{% endfor %}
+    return '{{ rdata['date'] }}';
+  }
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.22.2/moment.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.3/Chart.min.js"></script>
 <script src="{{ url_for('static', filename='chart-script.js') }}"></script>

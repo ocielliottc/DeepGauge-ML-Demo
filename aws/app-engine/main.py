@@ -359,11 +359,18 @@ def one_device(device_id):
     schema = DeviceSchema()
     data = schema.dump(query)
 
-    ## TODO: Pull the readings from the remote device and pass them to the
+    ## Pull the readings from the remote device and pass them to the
     ## rendering engine.
+    first = True
+    rdata = {'date': '',
+             'readings': {}}
     readings = remote_device.get_readings(query.name)
-    for key in readings:
-      print("DEBUG: " + str(key) + " " + str(readings[key][0]))
+    for timestamp in readings:
+      if (first):
+          first = False
+          rdata['date'] = timestamp.strftime('%B %d, %Y')
+      key = timestamp.strftime('%H:%M:%S')
+      rdata['readings'][key] = str(readings[timestamp][0])
 
     query_reading = Reading.query.filter(Reading.id_device == device_id).all()
     if query_reading is not None and len(query_reading) > 0:
@@ -377,7 +384,8 @@ def one_device(device_id):
     else:
         reading = []
 
-    return render_template('one_device.html', device=data, reading=reading)
+    return render_template('one_device.html',
+                           device=data, reading=reading, rdata=rdata)
 
 @app.route('/device/setting/<int:device_id>', methods=['GET', 'POST'])
 def show_device_setting(device_id):
