@@ -20,14 +20,15 @@
         <form action="{{ url_for('show_device_setting', device_id=device.id) }}" method="POST">
           <div class="form-group">
             <label>Device Name</label>
-            <input type="text" class="form-control" name="name" value="{% if device.name == "" %}Device{{ device.id }}{% else %}{{ device.name }}{% endif %}">
-          </div>
-          <div class="form-group">
-            <label for="url">URL</label>
-            <div class="input-group mb-3">
-              <input type="text" class="form-control" placeholder="{{device.bucket}}" aria-label="URL" aria-describedby="basic-addon2">
+            <div class="input-group">
+              <input type="text" class="form-control" id="name" name="name" value="{% if device.name == "" %}Device{{ device.id }}{% else %}{{ device.name }}{% endif %}">
               <div class="input-group-append">
-                <span class="input-group-text"><i class="fa fa-qrcode"></i></span>
+                <button id="device_name_button" type="button" class="btn btn-outline-secondary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"/>
+                <div id="device_names" class="dropdown-menu dropdown-menu-right">
+                  {% for name in names%}
+                  <a class="dropdown-item" href="#" onClick="document.getElementById('name').value = '{{ name }}'">{{ name }}</a>
+                  {% endfor %}
+                </div>
               </div>
             </div>
           </div>
@@ -99,4 +100,11 @@
     </section>
   </article>
 </div>
+{% endblock %}
+{% block script %}
+<script>
+$(document).ready(function() {
+  $('#device_names').width($('#name').width() + $('#device_name_button').width());
+});
+</script>
 {% endblock %}

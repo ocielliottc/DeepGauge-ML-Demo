@@ -141,6 +141,18 @@ class RemoteDevice:
 
         return [value, percent]
 
+    def get_kinesis_streams(self):
+        streams = []
+        try:
+          response = self.kinesis.list_streams()
+          for name in response['StreamNames']:
+            streams.append(name)
+        except Exception as err:
+            print(err)
+            pass
+
+        return streams
+
 remote_device = RemoteDevice()
 
 def create_live_image(device_id, value):
@@ -412,7 +424,8 @@ def show_device_setting(device_id):
             schema = DeviceSchema()
             data = schema.dump(query)
 
-        return render_template('setting_device.html', device=data)
+        names = remote_device.get_kinesis_streams()
+        return render_template('setting_device.html', device=data, names=names)
 
 # [START push]
 @app.route('/pubsub/push', methods=['POST'])
