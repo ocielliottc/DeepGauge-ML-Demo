@@ -387,31 +387,39 @@ def one_device(device_id):
 @app.route('/device/setting/<int:device_id>', methods=['GET', 'POST'])
 def show_device_setting(device_id):
     if request.method == 'POST':
-        ## Save the values in the local database
-        name = request.form.get('name')
-        type = request.form.get('device_type')
-        frame_rate = request.form.get('frame_rate')
-        refresh_rate = request.form.get('refresh_rate')
-        notes = request.form.get('notes')
-
         query = Device.query.filter(Device.id == device_id).one_or_none()
-        ## Store settings in local database
-        if query is None:
-            ## This should never happen
-            return 'Invalid Device Id', 417
+        delete = request.form.get('delete')
+        if (delete == None):
+            ## Save the values in the local database
+            name = request.form.get('name')
+            type = request.form.get('device_type')
+            frame_rate = request.form.get('frame_rate')
+            refresh_rate = request.form.get('refresh_rate')
+            notes = request.form.get('notes')
+
+            ## Store settings in local database
+            if query is None:
+                ## This should never happen
+                return 'Invalid Device Id', 417
+            else:
+                query.name = name
+                query.type = type
+                query.frame_rate = frame_rate
+                query.refresh_rate = refresh_rate
+                query.notes = notes
+                query.updated = datetime.today()
+
+            db.session.commit()
+
+            # Update the refresh rate in the remote device
+            remote_device.set_refresh_rate(query.name, refresh_rate)
+            return redirect("/device/{}".format(device_id))
         else:
-            query.name = name
-            query.type = type
-            query.frame_rate = frame_rate
-            query.refresh_rate = refresh_rate
-            query.notes = notes
-            query.updated = datetime.today()
-
-        db.session.commit()
-
-        # Update the refresh rate in the remote device
-        remote_device.set_refresh_rate(query.name, refresh_rate)
-        return redirect("/device/{}".format(device_id))
+            scheduler.remove_job(str(device_id))
+            if query is not None:
+                db.session.delete(query)
+                db.session.commit()
+            return redirect("/")
     else:
         query = Device.query.filter(Device.id == device_id).one_or_none()
 
