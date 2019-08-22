@@ -228,6 +228,8 @@ def pull_reading(device):
         db.session.commit()
 
 def make_database():
+    create_initial_device = True
+
     # Delete database file if it exists currently
     # Keep for running the database locally
     # if os.path.exists("deepgauge.db"):
@@ -237,21 +239,24 @@ def make_database():
     db.create_all()
 
     # Data to initialize database with
-    dev_name = 'PiCamera'
-    d = Device(
-        id_user         = 1,
-        name            = dev_name,
-        image           = '',
-        bucket          = "s3://{0}".format(bucket),
-        type            = "RaspberryPi",
-        location        = "St. Louis",
-        prediction      = "PSI 0",
-        frame_rate      = default_device_settings['frame_rate'],
-        refresh_rate    = remote_device.get_refresh_rate(dev_name),
-        notes           = "Camera attached to a RaspberryPi",
-        high_threshold  = 15,
-        low_threshold   = 0
-    )
+    if (create_initial_device):
+        dev_name = 'PiCamera'
+        d = Device(
+            id_user         = 1,
+            name            = dev_name,
+            image           = '',
+            bucket          = "s3://{0}".format(bucket),
+            type            = "RaspberryPi",
+            location        = "St. Louis",
+            prediction      = "PSI 0",
+            frame_rate      = default_device_settings['frame_rate'],
+            refresh_rate    = remote_device.get_refresh_rate(dev_name),
+            notes           = "Camera attached to a RaspberryPi",
+            high_threshold  = 15,
+            low_threshold   = 0
+        )
+
+        db.session.add(d)
 
     u = User(
         user_name       = "Technician",
@@ -262,20 +267,20 @@ def make_database():
     )
 
     db.session.add(u)
-    db.session.add(d)
 
     db.session.commit()
 
-    ## Once the device is created, the id has been populated
-    d.image = gauge_image.get_name(d.id)
-    db.session.commit()
+    if (create_initial_device):
+        ## Once the device is created, the id has been populated
+        d.image = gauge_image.get_name(d.id)
+        db.session.commit()
 
-    ## This should be done for all real devices.  The device name corresponds
-    ## to the name provided during provisioning.
-    pull_reading(d.id)
-    scheduler.add_job(func=lambda: pull_reading(d.id),
-                      trigger="interval", seconds=int(d.refresh_rate),
-                      id=str(d.id))
+        ## This should be done for all real devices.  The device name corresponds
+        ## to the name provided during provisioning.
+        pull_reading(d.id)
+        scheduler.add_job(func=lambda: pull_reading(d.id),
+                          trigger="interval", seconds=int(d.refresh_rate),
+                          id=str(d.id))
 
     return True
 
