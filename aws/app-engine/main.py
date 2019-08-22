@@ -155,8 +155,8 @@ class RemoteDevice:
 
 remote_device = RemoteDevice()
 
-def create_live_image(device_id, value):
-  background = Image.open(image_dir + '/blank_gauge.png')
+def create_live_image(device_id, high, value):
+  background = Image.open(image_dir + '/gauge_' + str(high) + '.png')
   needle = Image.open(image_dir + '/needle.png')
   needle = needle.rotate(132 - (value * 18))
   background.paste(needle, (0, 0), needle)
@@ -165,11 +165,13 @@ def create_live_image(device_id, value):
 
 
 def pull_reading(device):
+    high_threshold = 15
     update_device = Device.query.filter(Device.id == device).one_or_none()
     if update_device is not None:
         name = update_device.name
+        high_threshold = update_device.high_threshold
     values = remote_device.update_live(name)
-    create_live_image(device, values[0])
+    create_live_image(device, high_threshold, values[0])
 
     prediction = "psi " + str(values[0])
     accuracy = str(values[1]) + "%"
