@@ -74,6 +74,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_name = db.Column(db.String(32))
     display_name = db.Column(db.String(32))
+    cell_number = db.Column(db.String(32))
     company = db.Column(db.String(32))
     thumbnail = db.Column(db.String(32))
     updated = db.Column(

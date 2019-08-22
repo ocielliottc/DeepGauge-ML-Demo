@@ -165,12 +165,40 @@ def create_live_image(device_id, size, value):
 
 
 def pull_reading(device):
-    gauge_size = 15
     update_device = Device.query.filter(Device.id == device).one_or_none()
-    if update_device is not None:
-        name = update_device.name
+    if update_device is None:
+        ## If we cannot find the device, there's nothing to do
+        return
+
+    ## Get the last reading from the device and create the image
+    gauge_size = 15
+    name = update_device.name
     values = remote_device.update_live(name)
     create_live_image(device, gauge_size, values[0])
+
+    ## Check the thresholds and send an SMS message, if necessary
+    message = None
+    if (values[0] > update_device.high_threshold):
+        message = "{0} reading, {1}, is above {2}".format(update_device.name,
+                                                          values[0],
+                                                          update_device.high_threshold)
+    if (values[0] < update_device.low_threshold):
+        message = "{0} reading, {1}, is below {2}".format(update_device.name,
+                                                          values[0],
+                                                          update_device.low_threshold)
+    if (message is not None):
+        user = User.query.filter(User.id == update_device.id_user).one_or_none()
+        if (user is not None):
+            try:
+                ## Create an SNS client in the us-east-1 region.
+                ## This service is not available in us-east-2.
+                client = boto3.client('sns',
+                                      region_name='us-east-1')
+                client.publish(PhoneNumber=user.cell_number,
+                               Message=message)
+            except Exception as err:
+               print(err)
+               pass
 
     prediction = "psi " + str(values[0])
     accuracy = str(values[1]) + "%"
@@ -219,6 +247,7 @@ def make_database():
     u = User(
         user_name       = "Technician",
         display_name    = "Technician Name",
+        cell_number     = "+13145550100",
         company         = "Technicians Company",
         thumbnail       = "https://jobs.centurylink.com/sites/century-link/images/sp-technician-img.jpg"
     )
@@ -270,7 +299,7 @@ def setting():
         ## Store settings in local database
         if query is None:
             settings = Setting(id = 0,
-                               id_user = 0,
+                               id_user = 1,
                                type = type,
                                frame_rate = frame_rate,
                                refresh_rate = refresh_rate,
@@ -294,15 +323,39 @@ def setting():
 
         return render_template('setting.html', settings=data)
 
-@app.route('/user')
+@app.route('/user', methods=['GET', 'POST'])
 def user():
-    user = User.query.filter(User.id == 1).one_or_none()
+    query = User.query.filter(User.id == 1).one_or_none()
 
-    # Serialize the data for the response
-    schema = UserSchema()
-    data = schema.dump(user)
+    if request.method == 'POST':
+        user_name = request.form.get('user_name')
+        display_name = request.form.get('display_name')
+        cell_number = request.form.get('cell_number')
+        company = request.form.get('company')
 
-    return render_template('user.html', user=data)
+        ## Store settings in local database
+        if query is None:
+            user = User(user_name    = user_name,
+                        display_name = display_name,
+                        cell_number  = cell_number,
+                        company      = company,
+                        thumbnail    = '')
+            db.session.add(user)
+        else:
+            query.user_name = user_name
+            query.display_name = display_name
+            query.cell_number = cell_number
+            query.company = company
+            query.updated = datetime.today()
+
+        db.session.commit()
+        return redirect('/')
+    else:
+        # Serialize the data for the response
+        schema = UserSchema()
+        data = schema.dump(query)
+
+        return render_template('user.html', user=data)
 
 @app.route('/device/new')
 def new_device():
@@ -397,6 +450,8 @@ def show_device_setting(device_id):
             frame_rate = request.form.get('frame_rate')
             refresh_rate = request.form.get('refresh_rate')
             notes = request.form.get('notes')
+            high_threshold = request.form.get('high_threshold')
+            low_threshold = request.form.get('low_threshold')
 
             ## Store settings in local database
             if query is None:
@@ -408,6 +463,8 @@ def show_device_setting(device_id):
                 query.frame_rate = frame_rate
                 query.refresh_rate = refresh_rate
                 query.notes = notes
+                query.high_threshold = high_threshold
+                query.low_threshold = low_threshold
                 query.updated = datetime.today()
 
             db.session.commit()
