@@ -19,13 +19,29 @@ region = 'us-east-2'
 
 scheduler = BackgroundScheduler()
 
-image_dir = 'static/img'
-live_image_base = '/' + image_dir + '/live_device'
-
 default_device_settings = {'type': 'Gauge',
                            'frame_rate': '15',
                            'refresh_rate': '30'
                           }
+class GaugeImage:
+    def __init__(self):
+        self.image_dir = 'static/img'
+
+    def get_local_name(self, device_id):
+        return self.image_dir + '/live_device' + str(device_id) + '.png'
+
+    def get_name(self, device_id):
+        return '/' + self.get_local_name(device_id)
+
+    def create(self, device_id, size, value):
+        background = Image.open(self.image_dir + '/gauge_' + str(size) + '.png')
+        needle = Image.open(self.image_dir + '/needle.png')
+        needle = needle.rotate(132 - (value * 18))
+        background.paste(needle, (0, 0), needle)
+        background.save(self.get_local_name(device_id))
+
+    def delete(self, device_id):
+        os.remove(self.get_local_name(device_id))
 
 class RemoteDevice:
     def __init__(self):
@@ -153,15 +169,8 @@ class RemoteDevice:
 
         return streams
 
+gauge_image = GaugeImage()
 remote_device = RemoteDevice()
-
-def create_live_image(device_id, size, value):
-  background = Image.open(image_dir + '/gauge_' + str(size) + '.png')
-  needle = Image.open(image_dir + '/needle.png')
-  needle = needle.rotate(132 - (value * 18))
-  background.paste(needle, (0, 0), needle)
-  live_image = live_image_base[1:] + str(device_id) + ".png"
-  background.save(live_image)
 
 
 def pull_reading(device):
@@ -174,7 +183,7 @@ def pull_reading(device):
     gauge_size = 15
     name = update_device.name
     values = remote_device.update_live(name)
-    create_live_image(device, gauge_size, values[0])
+    gauge_image.create(device, gauge_size, values[0])
 
     ## Check the thresholds and send an SMS message, if necessary
     message = None
@@ -258,7 +267,7 @@ def make_database():
     db.session.commit()
 
     ## Once the device is created, the id has been populated
-    d.image = live_image_base + str(d.id) + '.png'
+    d.image = gauge_image.get_name(d.id)
     db.session.commit()
 
     ## This should be done for all real devices.  The device name corresponds
@@ -388,7 +397,7 @@ def new_device():
     db.session.commit()
 
     ## Once the device is created, the id has been populated
-    device.image = live_image_base + str(device.id) + '.png'
+    device.image = gauge_image.get_name(device.id)
     device.name = 'Device' + str(device.id)
     db.session.commit()
 
@@ -473,6 +482,7 @@ def show_device_setting(device_id):
             remote_device.set_refresh_rate(query.name, refresh_rate)
             return redirect("/device/{}".format(device_id))
         else:
+            gauge_image.delete(device_id)
             scheduler.remove_job(str(device_id))
             if query is not None:
                 db.session.delete(query)
