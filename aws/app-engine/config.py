@@ -21,11 +21,6 @@ sqlite_url = "sqlite:///:memory:"
 app.config["SQLALCHEMY_ECHO"] = True
 app.config["SQLALCHEMY_DATABASE_URI"] = sqlite_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-# Configure the following environment variables via app.yaml
-# This is used in the push request handler to veirfy that the request came from
-# pubsub and originated from a trusted source.
-app.config['PUBSUB_VERIFICATION_TOKEN'] = os.environ['PUBSUB_VERIFICATION_TOKEN']
-app.config['PUBSUB_TOPIC'] = os.environ['PUBSUB_TOPIC']
 app.config['PROJECT'] = "dashboard"
 
 # Create the SqlAlchemy db instance
