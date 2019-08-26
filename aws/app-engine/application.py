@@ -21,8 +21,8 @@ bucket = 'ocideepgauge-images'
 
 # The default region
 region = 'us-east-2'
-access_key = 'AKIASWEZAXSDXSBC5JH3'
-secret_key = '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'
+access_key = 'ACCESS_KEY__________'
+secret_key = 'SECRET_KEY______________________________'
 
 scheduler = BackgroundScheduler()
 
