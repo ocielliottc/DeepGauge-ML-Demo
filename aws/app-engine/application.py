@@ -2,11 +2,16 @@
 from flask import Flask, Response, request, json, render_template, current_app, redirect
 import boto3
 import base64, json, logging, os
-from config import db, app, connex_app
+from config import db, application, connex_app
 from models import *
 from datetime import datetime
 from PIL import Image
 from apscheduler.schedulers.background import BackgroundScheduler
+
+# To deploy this on elastic beanstalk, the app needs to be named application.
+# But, since this was originally written without AWS in mind, it's referenced
+# as app throught this code.
+app = application
 
 # Read the swagger.yml file to configure the endpoints
 connex_app.add_api("swagger.yml")
@@ -16,6 +21,8 @@ bucket = 'ocideepgauge-images'
 
 # The default region
 region = 'us-east-2'
+access_key = 'AKIASWEZAXSDXSBC5JH3'
+secret_key = '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'
 
 scheduler = BackgroundScheduler()
 
@@ -45,8 +52,14 @@ class GaugeImage:
 
 class RemoteDevice:
     def __init__(self):
-        self.db = boto3.client('dynamodb')
-        self.kinesis = boto3.client('kinesis')
+        self.db = boto3.client('dynamodb',
+                               region_name=region,
+                               aws_access_key_id=access_key,
+                               aws_secret_access_key=secret_key)
+        self.kinesis = boto3.client('kinesis',
+                                    region_name=region,
+                                    aws_access_key_id=access_key,
+                                    aws_secret_access_key=secret_key)
         self.item_name = 'Item'
         self.map_name = 'data'
         self.rate_name = 'rate'
@@ -202,7 +215,9 @@ def pull_reading(device):
                 ## Create an SNS client in the us-east-1 region.
                 ## This service is not available in us-east-2.
                 client = boto3.client('sns',
-                                      region_name='us-east-1')
+                                      region_name='us-east-1',
+                                      aws_access_key_id=access_key,
+                                      aws_secret_access_key=secret_key)
                 client.publish(PhoneNumber=user.cell_number,
                                Message=message)
             except Exception as err:
@@ -567,5 +582,5 @@ scheduler.start()
 #atexit.register(lambda: scheduler.shutdown())
 
 if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=8080, debug=True, use_reloader=False)
+    app.run(host='127.0.0.1', port=8080, debug=True)
 # [START gae_python37_render_template]

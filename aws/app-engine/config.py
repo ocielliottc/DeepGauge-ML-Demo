@@ -9,7 +9,7 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 connex_app = connexion.App(__name__, specification_dir=basedir)
 
 # Get the underlying Flask app instance
-app = connex_app.app
+application = connex_app.app
 
 # Build the Sqlite ULR for SqlAlchemy
 # sqlite_url = "sqlite:////" + os.path.join(basedir, "deepgauge.db")
@@ -18,13 +18,13 @@ sqlite_url = "sqlite:///:memory:"
 
 
 # Configure the SqlAlchemy part of the app instance
-app.config["SQLALCHEMY_ECHO"] = True
-app.config["SQLALCHEMY_DATABASE_URI"] = sqlite_url
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-app.config['PROJECT'] = "dashboard"
+application.config["SQLALCHEMY_ECHO"] = True
+application.config["SQLALCHEMY_DATABASE_URI"] = sqlite_url
+application.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+application.config['PROJECT'] = "dashboard"
 
 # Create the SqlAlchemy db instance
-db = SQLAlchemy(app)
+db = SQLAlchemy(application)
 
 # Initialize Marshmallow
-ma = Marshmallow(app)
+ma = Marshmallow(application)

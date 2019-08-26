@@ -1,0 +1,8 @@
+__pycache__
+*.pyc
+static/img/live_device*.png
+
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml
