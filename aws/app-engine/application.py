@@ -21,8 +21,6 @@ bucket = 'ocideepgauge-images'
 
 # The default region
 region = 'us-east-2'
-access_key = os.environ['AWS_ACCESS_KEY_ID']
-secret_key = os.environ['AWS_SECRET_ACCESS_KEY']
 
 scheduler = BackgroundScheduler()
 
@@ -53,13 +51,9 @@ class GaugeImage:
 class RemoteDevice:
     def __init__(self):
         self.db = boto3.client('dynamodb',
-                               region_name=region,
-                               aws_access_key_id=access_key,
-                               aws_secret_access_key=secret_key)
+                               region_name=region)
         self.kinesis = boto3.client('kinesis',
-                                    region_name=region,
-                                    aws_access_key_id=access_key,
-                                    aws_secret_access_key=secret_key)
+                                    region_name=region)
         self.item_name = 'Item'
         self.map_name = 'data'
         self.rate_name = 'rate'
@@ -215,9 +209,7 @@ def pull_reading(device):
                 ## Create an SNS client in the us-east-1 region.
                 ## This service is not available in us-east-2.
                 client = boto3.client('sns',
-                                      region_name='us-east-1',
-                                      aws_access_key_id=access_key,
-                                      aws_secret_access_key=secret_key)
+                                      region_name='us-east-1')
                 client.publish(PhoneNumber=user.cell_number,
                                Message=message)
             except Exception as err:
