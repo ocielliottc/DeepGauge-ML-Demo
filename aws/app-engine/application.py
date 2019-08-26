@@ -21,8 +21,8 @@ bucket = 'ocideepgauge-images'
 
 # The default region
 region = 'us-east-2'
-access_key = 'ACCESS_KEY__________'
-secret_key = 'SECRET_KEY______________________________'
+access_key = os.environ['AWS_ACCESS_KEY_ID']
+secret_key = os.environ['AWS_SECRET_ACCESS_KEY']
 
 scheduler = BackgroundScheduler()
 
