@@ -31,6 +31,7 @@
             </div>
 
             <ul class="list-unstyled components">
+                {% if current_user.is_authenticated %}
                 <li>
                 <!-- <li class="active"> -->
                   <a href="{{ url_for('new_device') }}">
@@ -47,9 +48,23 @@
                 <li>
                   <a href="{{ url_for('user') }}">
                     <i class="fas fa-user-circle"></i>
-                    <span>Username</span>
+                    <span>User Settings</span>
                   </a>
                 </li>
+                <li>
+                  <a href="{{ url_for('logout') }}">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                  </a>
+                </li>
+                {% else %}
+                <li>
+                  <a href="{{ url_for('login') }}">
+                    <i class="fas fa-user-circle"></i>
+                    <span>Login</span>
+                  </a>
+                </li>
+                {% endif %}
             </ul>
         </nav>
 

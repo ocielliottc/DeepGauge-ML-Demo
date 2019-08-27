@@ -7,6 +7,7 @@ from models import *
 from datetime import datetime
 from PIL import Image
 from apscheduler.schedulers.background import BackgroundScheduler
+from flask_login import LoginManager, login_required, UserMixin, login_user, logout_user, current_user
 
 # To deploy this on elastic beanstalk, the app needs to be named application.
 # But, since this was originally written without AWS in mind, it's referenced
@@ -16,7 +17,13 @@ app = application
 # Read the swagger.yml file to configure the endpoints
 connex_app.add_api("swagger.yml")
 
+## Scheduler to allow polling of the device readings
 scheduler = BackgroundScheduler()
+
+## The flask login manager
+app.config['SECRET_KEY'] = 'jIikpakjfdia;/jidfoia'
+login_manager = LoginManager()
+login_manager.init_app(app)
 
 ## Default Settings for various parts of the application
 default_settings = {
@@ -27,6 +34,23 @@ default_settings = {
              'refresh_rate': '30'
             }
 }
+
+class AppUser(UserMixin):
+    def __init__(self, id):
+        self.id = id
+
+    def is_active(self):
+        return True
+
+    def get_id(self):
+        return self.id
+
+    def get(user_id):
+        user = User.query.filter(User.id == user_id).one_or_none()
+        if (user is None):
+            return None
+        else:
+            return AppUser(user_id)
 
 class GaugeImage:
     def __init__(self):
@@ -271,7 +295,7 @@ def make_database():
         db.session.add(d)
 
     u = User(
-        user_name       = "Technician",
+        user_name       = "technician",
         display_name    = "Technician Name",
         cell_number     = "+13145550100",
         company         = "Technicians Company",
@@ -279,7 +303,6 @@ def make_database():
     )
 
     db.session.add(u)
-
     db.session.commit()
 
     if (create_initial_device):
@@ -300,9 +323,19 @@ def make_database():
 with app.test_request_context():
      make_database()
 
+@login_manager.user_loader
+def load_user(user_id):
+    return AppUser.get(user_id)
+
+auto_login_primary_user = False
 @app.route('/')
 def root():
-    query = Device.query.order_by(Device.id_user).all()
+    global auto_login_primary_user
+    if (auto_login_primary_user):
+        auto_login_primary_user = False
+        login_user(AppUser(1))
+
+    query = Device.query.filter(Device.id_user == current_user.get_id()).order_by(Device.id)
 
     # Serialize the data for the response
     schema = DeviceSchema(many=True)
@@ -314,9 +347,31 @@ def root():
     return render_template('dashboard.html', devices=data)
 
 
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        user_name = request.form['user_name']
+        password = request.form['password']
+
+        query = User.query.filter(User.user_name == user_name).one_or_none()
+        if (query is None):
+            return render_template('login.html',
+                                   message='Unknown user or incorrect password')
+
+        login_user(AppUser(query.id))
+        return redirect('/')
+    else:
+        return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    logout_user()
+    return redirect('/')
+
 @app.route('/setting', methods=['GET', 'POST'])
+@login_required
 def setting():
-    query = Setting.query.one_or_none()
+    query = Setting.query.filter(Setting.id_user == current_user.get_id()).one_or_none()
     if request.method == 'POST':
         type = request.form.get('device_type')
         frame_rate = request.form.get('frame_rate')
@@ -325,7 +380,7 @@ def setting():
         ## Store settings in local database
         if query is None:
             settings = Setting(id = 0,
-                               id_user = 1,
+                               id_user = current_user.get_id(),
                                type = type,
                                frame_rate = frame_rate,
                                refresh_rate = refresh_rate,
@@ -350,8 +405,9 @@ def setting():
         return render_template('setting.html', settings=data)
 
 @app.route('/user', methods=['GET', 'POST'])
+@login_required
 def user():
-    query = User.query.filter(User.id == 1).one_or_none()
+    query = User.query.filter(User.id == current_user.get_id()).one_or_none()
 
     if request.method == 'POST':
         user_name = request.form.get('user_name')
@@ -384,6 +440,7 @@ def user():
         return render_template('user.html', user=data)
 
 @app.route('/device/new')
+@login_required
 def new_device():
     ## Get the defaults from the database
     settings = default_settings['device']
@@ -395,7 +452,7 @@ def new_device():
     # Create a new Device entry
     schema = DeviceSchema()
     device = Device(
-        id_user         = 1, #TODO request this from the Flask auth session - not implemented
+        id_user         = current_user.get_id(),
         name            = "",
         image           = '',
         bucket          = "s3://{0}".format(default_settings['bucket']),
@@ -429,6 +486,7 @@ def new_device():
     return redirect("/device/setting/{}".format(device.id), code=302)
 
 @app.route('/device/<int:device_id>')
+@login_required
 def one_device(device_id):
     query = Device.query.filter(Device.id == device_id).one()
 
@@ -465,6 +523,7 @@ def one_device(device_id):
                            device=data, reading=reading, rdata=rdata)
 
 @app.route('/device/setting/<int:device_id>', methods=['GET', 'POST'])
+@login_required
 def show_device_setting(device_id):
     if request.method == 'POST':
         query = Device.query.filter(Device.id == device_id).one_or_none()
@@ -519,51 +578,6 @@ def show_device_setting(device_id):
 
         names = remote_device.get_kinesis_streams()
         return render_template('setting_device.html', device=data, names=names)
-
-# [START push]
-@app.route('/pubsub/push', methods=['POST'])
-def pubsub_push():
-    if (request.args.get('token', '') !=
-            current_app.config['PUBSUB_VERIFICATION_TOKEN']):
-        return 'Invalid request', 400
-
-    envelope = json.loads(request.get_data().decode('utf-8'))
-    payload = base64.b64decode(envelope['message']['data'])
-
-    payload_json = payload.decode('utf8').replace("'", '"')
-    payload_data = json.loads(payload_json)
-    for d in payload_data:
-        for cl in d['class_label']:
-            prediction = cl
-        for ci in d['class_ids']:
-            acc = d['probabilities'][ci]*100
-
-    schema = ReadingSchema()
-    reading = Reading(
-        id_device   = envelope['message']['attributes']['device'],
-        prediction  = prediction,
-        accuracy    = acc,
-        body        = payload_json
-    )
-    # Add to the database
-    db.session.add(reading)
-    db.session.commit()
-
-    # Update the Device model with the prediction
-    id_device = envelope['message']['attributes']['device']
-    update_device = Device.query.filter(Device.id == id_device).one_or_none()
-
-    if update_device is not None:
-        update_device.prediction = prediction.replace("_"," ").upper()
-        db.session.commit()
-
-    # Serialize and return the newly created person in the response
-    data = schema.dump(reading)
-
-    # Returning any 2xx status indicates successful receipt of the message.
-    return 'OK', 200
-# [END push]
-
 
 @app.errorhandler(500)
 def server_error(e):

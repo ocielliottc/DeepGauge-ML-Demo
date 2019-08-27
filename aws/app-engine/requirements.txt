@@ -1,6 +1,7 @@
 Flask_SQLAlchemy==2.4.0
 flask_marshmallow==0.10.1
 Flask==1.1.1
+Flask_Login==0.4.1
 connexion[swagger-ui]==2.3.0
 APScheduler==3.6.1
 boto3==1.9.199

@@ -12,7 +12,7 @@
   <article class="container-fluid">
     <section class="row">
       <div class="col-12">
-        <h2>User</h2>
+        <h2>User Settings</h2>
       </div>
     </section>
     <section class="row">
@@ -20,7 +20,7 @@
         <form action="{{ url_for('user') }}" method="POST">
           <div class="form-group">
             <label for="username">Username</label>
-            <input type="text" class="form-control" name="user_name" value="{{user.user_name}}" />
+            <input type="text" class="form-control" name="user_name" value="{{user.user_name}}" disabled/>
           </div>
           <div class="form-group">
             <label for="display_name">Display Name</label>
