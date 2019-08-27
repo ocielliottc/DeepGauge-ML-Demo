@@ -57,6 +57,7 @@ class RemoteDevice:
         self.item_name = 'Item'
         self.map_name = 'data'
         self.rate_name = 'rate'
+        self.last_reading_time = {}
 
     def get_dynamodb_entry(self, name):
         response = self.db.list_tables()
@@ -129,7 +130,7 @@ class RemoteDevice:
 
         return readings
 
-    def update_live(self, name):
+    def get_last_reading(self, name):
         if name is None or name is "":
           return [0, 0]
 
@@ -141,7 +142,10 @@ class RemoteDevice:
             ## There isn't an easy way to get the last entry in a Kinesis
             ## Data Stream.  So, we are going to iterate over the values for the
             ## day and take the last one we find.
-            timestamp = datetime.today().strftime('%Y-%m-%dT00:00:00')
+            if (name in self.last_reading_time):
+                timestamp = self.last_reading_time[name]
+            else:
+                timestamp = datetime.today().strftime('%Y-%m-%dT00:00:00')
             shard_it = self.kinesis.get_shard_iterator(StreamName=name,
                                                        ShardId='shardId-000000000000',
                                                        ShardIteratorType='AT_TIMESTAMP',
@@ -150,6 +154,7 @@ class RemoteDevice:
                 out = self.kinesis.get_records(ShardIterator=shard_it)
 
                 for o in out["Records"]:
+                    self.last_reading_time[name] = o["ApproximateArrivalTimestamp"]
                     jdat = json.loads(o["Data"])
                     value = jdat['id']
                     percent = jdat['score']
@@ -189,7 +194,7 @@ def pull_reading(device):
     ## Get the last reading from the device and create the image
     gauge_size = 15
     name = update_device.name
-    values = remote_device.update_live(name)
+    values = remote_device.get_last_reading(name)
     gauge_image.create(device, gauge_size, values[0])
 
     ## Check the thresholds and send an SMS message, if necessary
