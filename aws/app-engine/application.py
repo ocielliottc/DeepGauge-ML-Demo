@@ -16,18 +16,18 @@ app = application
 # Read the swagger.yml file to configure the endpoints
 connex_app.add_api("swagger.yml")
 
-# The bucket in which gauge images are stored/uploaded
-bucket = 'ocideepgauge-images'
-
-# The default region
-region = 'us-east-2'
-
 scheduler = BackgroundScheduler()
 
-default_device_settings = {'type': 'Gauge',
-                           'frame_rate': '15',
-                           'refresh_rate': '30'
-                          }
+## Default Settings for various parts of the application
+default_settings = {
+  'bucket': 'ocideepgauge-images',
+  'region': 'us-east-2',
+  'device': {'type': 'Gauge',
+             'frame_rate': '15',
+             'refresh_rate': '30'
+            }
+}
+
 class GaugeImage:
     def __init__(self):
         self.image_dir = 'static/img'
@@ -51,9 +51,9 @@ class GaugeImage:
 class RemoteDevice:
     def __init__(self):
         self.db = boto3.client('dynamodb',
-                               region_name=region)
+                               region_name=default_settings['region'])
         self.kinesis = boto3.client('kinesis',
-                                    region_name=region)
+                                    region_name=default_settings['region'])
         self.item_name = 'Item'
         self.map_name = 'data'
         self.rate_name = 'rate'
@@ -257,11 +257,11 @@ def make_database():
             id_user         = 1,
             name            = dev_name,
             image           = '',
-            bucket          = "s3://{0}".format(bucket),
+            bucket          = "s3://{0}".format(default_settings['bucket']),
             type            = "RaspberryPi",
             location        = "St. Louis",
             prediction      = "PSI 0",
-            frame_rate      = default_device_settings['frame_rate'],
+            frame_rate      = default_settings['device']['frame_rate'],
             refresh_rate    = remote_device.get_refresh_rate(dev_name),
             notes           = "Camera attached to a RaspberryPi",
             high_threshold  = 15,
@@ -342,7 +342,7 @@ def setting():
         return redirect('/')
     else:
         ## Query local database to get defaults
-        data = default_device_settings
+        data = default_settings['device']
         if query is not None:
             schema = SettingSchema()
             data = schema.dump(query)
@@ -386,7 +386,7 @@ def user():
 @app.route('/device/new')
 def new_device():
     ## Get the defaults from the database
-    settings = default_device_settings
+    settings = default_settings['device']
     query = Setting.query.one_or_none()
     if query is not None:
       settings['frame_rate'] = query.frame_rate
@@ -398,7 +398,7 @@ def new_device():
         id_user         = 1, #TODO request this from the Flask auth session - not implemented
         name            = "",
         image           = '',
-        bucket          = "s3://{0}".format(bucket),
+        bucket          = "s3://{0}".format(default_settings['bucket']),
         type            = "Gauge",
         prediction      = "",
         location        = "",  #TODO detect or update value from geo service
