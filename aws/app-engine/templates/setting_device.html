@@ -1,5 +1,10 @@
 {% extends 'base.html' %}
 {% block content %}
+<style>
+.my-dropdown-toggle {
+    background-image: url("/static/img/updown.png")
+}
+</style>
 <div id="content">
   <nav class="navbar navbar-expand-lg navbar-light bg-light">
     <div class="container-fluid">
@@ -41,7 +46,7 @@
             <div class="input-group">
               <input type="text" class="form-control" id="name" name="name" value="{% if device.name == "" %}Device{{ device.id }}{% else %}{{ device.name }}{% endif %}">
               <div class="input-group-append">
-                <button id="device_name_button" type="button" class="btn btn-outline-secondary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"/>
+                <button type="button" class="btn btn-outline-secondary my-dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"/>
                 <div id="device_names" class="dropdown-menu dropdown-menu-right">
                   {% for name in names%}
                   <a class="dropdown-item" href="#" onClick="document.getElementById('name').value = '{{ name }}'">{{ name }}</a>
