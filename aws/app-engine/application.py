@@ -1,7 +1,6 @@
 # [START gae_python37_render_template]
 from flask import Flask, Response, request, json, render_template, current_app, redirect
-import boto3
-import base64, json, logging, os
+import base64, json, logging, os, boto3, scrypt
 from config import db, application, connex_app
 from models import *
 from datetime import datetime
@@ -53,6 +52,16 @@ class AppUser(UserMixin):
             return None
         else:
             return AppUser(user.id, user.display_name, user.admin)
+
+    def hash_password(password, datalength=64):
+        return scrypt.encrypt(os.urandom(datalength), password, maxtime=0.5)
+
+    def verify_password(hashed_password, guessed_password):
+        try:
+            scrypt.decrypt(hashed_password, guessed_password, encoding=None)
+            return True
+        except:
+            return False
 
 class GaugeImage:
     def __init__(self):
@@ -311,6 +320,7 @@ def make_database():
     u = User(
         admin        = True,
         user_name    = "technician",
+        password     = AppUser.hash_password('123'),
         display_name = "Technician Name",
         cell_number  = "+13145550100",
         company      = "Technicians Company",
@@ -364,7 +374,7 @@ def login():
         password = request.form['password']
 
         query = User.query.filter(User.user_name == user_name).one_or_none()
-        if (query is None):
+        if (query is None or not AppUser.verify_password(query.password, password)):
             return render_template('login.html',
                                    message='Unknown user or incorrect password')
 
@@ -446,11 +456,13 @@ def user():
             query.company = company
             query.updated = datetime.today()
 
-        db.session.commit()
-        return redirect('/')
+            db.session.commit()
+            return redirect('/')
     else:
-        # Serialize the data for the response
+        ## Serialize the data for the response.  We need to empty the
+        ## password because it will not serialize (and we don't need it).
         schema = UserSchema()
+        query.password = ''
         data = schema.dump(query)
 
         return render_template('user.html', user=data)
@@ -463,27 +475,36 @@ def add_user():
 
     if request.method == 'POST':
         user_name = request.form.get('user_name')
+        password = request.form.get('password')
         display_name = request.form.get('display_name')
         cell_number = request.form.get('cell_number')
         company = request.form.get('company')
 
         user = User(user_name    = user_name,
+                    password     = '',
                     display_name = display_name,
                     cell_number  = cell_number,
                     company      = company,
                     thumbnail    = '')
 
-        ## Store settings in local database
-        query = User.query.filter(User.user_name == user_name).one_or_none()
-        if query is None:
-            db.session.add(user)
-            db.session.commit()
-            return redirect('/')
+        schema = UserSchema()
+        data = schema.dump(user)
+
+        ## TODO: Perform a more extensive check of the password
+        if (len(password) < 2):
+            ## This is an invalid password
+            message = "Please choose a password with a minimum of 8 characters"
         else:
-            ## This user already exists
-            schema = UserSchema()
-            data = schema.dump(user)
-            message = "That user already exists!"
+            ## Store settings in local database
+            query = User.query.filter(User.user_name == user_name).one_or_none()
+            if query is None:
+                user.password = AppUser.hash_password(password)
+                db.session.add(user)
+                db.session.commit()
+                return redirect('/')
+            else:
+                ## This user already exists
+                message = "That user already exists!"
 
     return render_template('user.html',
                            user=data, message=message, adding=True)
@@ -636,8 +657,6 @@ def server_error(e):
 
 
 scheduler.start()
-
-#atexit.register(lambda: scheduler.shutdown())
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=8080, debug=True)

@@ -30,8 +30,14 @@
         <form action="{{ request.full_path }}" method="POST">
           <div class="form-group">
             <label for="username">Username</label>
-            <input type="text" class="form-control" name="user_name" value="{{user.user_name}}" {% if not adding %}disabled{% endif %}/>
+            <input type="text" class="form-control" name="user_name" value="{{user.user_name}}" {% if not adding %}readonly{% endif %}/>
           </div>
+          {% if adding %}
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" class="form-control" name="password" value="" />
+          </div>
+          {% endif %}
           <div class="form-group">
             <label for="display_name">Display Name</label>
             <input type="text" class="form-control" name="display_name" value="{{user.display_name}}" />
