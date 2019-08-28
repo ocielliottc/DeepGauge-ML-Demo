@@ -36,8 +36,10 @@ default_settings = {
 }
 
 class AppUser(UserMixin):
-    def __init__(self, id):
+    def __init__(self, id, display, admin):
         self.id = id
+        self.display_name = display
+        self.is_admin = admin
 
     def is_active(self):
         return True
@@ -50,7 +52,7 @@ class AppUser(UserMixin):
         if (user is None):
             return None
         else:
-            return AppUser(user_id)
+            return AppUser(user.id, user.display_name, user.admin)
 
 class GaugeImage:
     def __init__(self):
@@ -70,7 +72,10 @@ class GaugeImage:
         background.save(self.get_local_name(device_id))
 
     def delete(self, device_id):
-        os.remove(self.get_local_name(device_id))
+        try:
+            os.remove(self.get_local_name(device_id))
+        except:
+            pass
 
 class RemoteDevice:
     def __init__(self):
@@ -258,10 +263,19 @@ def pull_reading(device):
     db.session.add(reading)
     db.session.commit()
 
-    if update_device is not None:
-        update_device.prediction = prediction.replace("_"," ").upper()
-        update_device.updated = datetime.today()
-        db.session.commit()
+    update_device.prediction = prediction.replace("_"," ").upper()
+    update_device.updated = datetime.today()
+    db.session.commit()
+
+def schedule_device(device):
+    ## This should be done for all real devices.  The device name
+    ## corresponds to the name provided during provisioning.
+    pull_reading(device.id)
+    if (scheduler.get_job(device.name) is not None):
+        scheduler.remove_job(device.name)
+    scheduler.add_job(func=lambda: pull_reading(device.id),
+                      trigger="interval", seconds=int(device.refresh_rate),
+                      id=device.name)
 
 def make_database():
     create_initial_device = True
@@ -295,11 +309,12 @@ def make_database():
         db.session.add(d)
 
     u = User(
-        user_name       = "technician",
-        display_name    = "Technician Name",
-        cell_number     = "+13145550100",
-        company         = "Technicians Company",
-        thumbnail       = "https://jobs.centurylink.com/sites/century-link/images/sp-technician-img.jpg"
+        admin        = True,
+        user_name    = "technician",
+        display_name = "Technician Name",
+        cell_number  = "+13145550100",
+        company      = "Technicians Company",
+        thumbnail    = "https://jobs.centurylink.com/sites/century-link/images/sp-technician-img.jpg"
     )
 
     db.session.add(u)
@@ -310,12 +325,7 @@ def make_database():
         d.image = gauge_image.get_name(d.id)
         db.session.commit()
 
-        ## This should be done for all real devices.  The device name corresponds
-        ## to the name provided during provisioning.
-        pull_reading(d.id)
-        scheduler.add_job(func=lambda: pull_reading(d.id),
-                          trigger="interval", seconds=int(d.refresh_rate),
-                          id=str(d.id))
+        schedule_device(d)
 
     return True
 
@@ -333,7 +343,7 @@ def root():
     global auto_login_primary_user
     if (auto_login_primary_user):
         auto_login_primary_user = False
-        login_user(AppUser(1))
+        login_user(AppUser.get(1))
 
     query = Device.query.filter(Device.id_user == current_user.get_id()).order_by(Device.id)
 
@@ -358,13 +368,22 @@ def login():
             return render_template('login.html',
                                    message='Unknown user or incorrect password')
 
-        login_user(AppUser(query.id))
+        login_user(AppUser(query.id, query.display_name, query.admin))
+
+        query = Device.query.filter(Device.id_user == current_user.get_id()).all()
+        for device in query:
+            schedule_device(device)
+
         return redirect('/')
     else:
         return render_template('login.html')
 
 @app.route('/logout')
 def logout():
+    query = Device.query.filter(Device.id_user == current_user.get_id()).all()
+    for device in query:
+        if (scheduler.get_job(device.name) is not None):
+            scheduler.remove_job(device.name)
     logout_user()
     return redirect('/')
 
@@ -417,12 +436,9 @@ def user():
 
         ## Store settings in local database
         if query is None:
-            user = User(user_name    = user_name,
-                        display_name = display_name,
-                        cell_number  = cell_number,
-                        company      = company,
-                        thumbnail    = '')
-            db.session.add(user)
+            ## This is an error.  We can't modify the user settings
+            ## if the user doesn't exist.
+            return 'Invalid User Id', 417
         else:
             query.user_name = user_name
             query.display_name = display_name
@@ -438,6 +454,39 @@ def user():
         data = schema.dump(query)
 
         return render_template('user.html', user=data)
+
+@app.route('/add_user', methods=['GET', 'POST'])
+@login_required
+def add_user():
+    data = {}
+    message = None
+
+    if request.method == 'POST':
+        user_name = request.form.get('user_name')
+        display_name = request.form.get('display_name')
+        cell_number = request.form.get('cell_number')
+        company = request.form.get('company')
+
+        user = User(user_name    = user_name,
+                    display_name = display_name,
+                    cell_number  = cell_number,
+                    company      = company,
+                    thumbnail    = '')
+
+        ## Store settings in local database
+        query = User.query.filter(User.user_name == user_name).one_or_none()
+        if query is None:
+            db.session.add(user)
+            db.session.commit()
+            return redirect('/')
+        else:
+            ## This user already exists
+            schema = UserSchema()
+            data = schema.dump(user)
+            message = "That user already exists!"
+
+    return render_template('user.html',
+                           user=data, message=message, adding=True)
 
 @app.route('/device/new')
 @login_required
@@ -475,12 +524,9 @@ def new_device():
     device.name = 'Device' + str(device.id)
     db.session.commit()
 
-    ## This should be done for all real devices.  The device name
-    ## corresponds to the name provided during provisioning.
-    pull_reading(device.id)
-    scheduler.add_job(func=lambda: pull_reading(device.id),
-                      trigger="interval", seconds=int(device.refresh_rate),
-                      id=str(device.id))
+    ## Delete the image (if it exists) and schedule the device to be polled
+    gauge_image.delete(device.id)
+    schedule_device(device)
 
     # Redirect to the device page.
     return redirect("/device/setting/{}".format(device.id), code=302)
@@ -559,8 +605,9 @@ def show_device_setting(device_id):
             return redirect("/device/{}".format(device_id))
         else:
             gauge_image.delete(device_id)
-            scheduler.remove_job(str(device_id))
             if query is not None:
+                if (scheduler.get_job(query.name) is not None):
+                    scheduler.remove_job(query.name)
                 db.session.delete(query)
                 db.session.commit()
             return redirect("/")

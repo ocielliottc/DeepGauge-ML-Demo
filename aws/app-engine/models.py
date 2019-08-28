@@ -63,6 +63,7 @@ class User(db.Model):
     cell_number = db.Column(db.String(32))
     company = db.Column(db.String(32))
     thumbnail = db.Column(db.String(32))
+    admin = db.Column(db.Boolean)
     updated = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )

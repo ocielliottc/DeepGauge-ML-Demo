@@ -10,17 +10,27 @@
     </div>
   </nav>
   <article class="container-fluid">
+    {% if adding %}
+    {% if message %}
+    <section class="row">
+      <div class="col-12">
+        <p class="text-danger">{{ message }}</p>
+      </div>
+    </section>
+    {% endif %}
+    {% else %}
     <section class="row">
       <div class="col-12">
         <h2>User Settings</h2>
       </div>
     </section>
+    {% endif %}
     <section class="row">
       <div class="col-6">
-        <form action="{{ url_for('user') }}" method="POST">
+        <form action="{{ request.full_path }}" method="POST">
           <div class="form-group">
             <label for="username">Username</label>
-            <input type="text" class="form-control" name="user_name" value="{{user.user_name}}" disabled/>
+            <input type="text" class="form-control" name="user_name" value="{{user.user_name}}" {% if not adding %}disabled{% endif %}/>
           </div>
           <div class="form-group">
             <label for="display_name">Display Name</label>
@@ -44,7 +54,7 @@
             <label for="username">Thumbnail</label>
           </div>
           <div class="form-group">
-            <img src="{{user.thumbnail}}" alt="Thumbnail">
+            <img src="{{user.thumbnail}}" alt="Image Unavailable">
           </div>
           <button type="submit" class="btn btn-default">Edit</button>
         </form>
