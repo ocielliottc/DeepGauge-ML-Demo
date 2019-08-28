@@ -23,15 +23,7 @@
               <option value="RaspberryPi"{% if settings.type == "RaspberryPi" %} selected{% endif %}>RaspberryPi</option>
             </select>
           </div>
-          <div class="form-group">
-            <label for="default_framerate">Default Framerate</label>
-            <select class="form-control" name="frame_rate">
-              <option>Choose...</option>
-              <option value="15"{% if settings.frame_rate == "15" %} selected{% endif %}>15</option>
-              <option value="30"{% if settings.frame_rate == "30" %} selected{% endif %}>30</option>
-              <option value="60"{% if settings.frame_rate == "60" %} selected{% endif %}>60</option>
-            </select>
-          </div>
+          <input type="hidden" name="frame_rate" value="{{ settings.frame_rate }}"/>
           <div class="form-group">
             <label for="default_refresh_rate">Default Refresh Rate</label>
             <select class="form-control" name="refresh_rate">

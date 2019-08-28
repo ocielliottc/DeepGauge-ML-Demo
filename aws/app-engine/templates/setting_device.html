@@ -64,15 +64,7 @@
               <option value="RaspberryPi"{% if device.type == "RaspberryPi" %} selected{% endif %}>RaspberryPi</option>
             </select>
           </div>
-          <div class="form-group">
-            <label for="url">Frame Rate</label>
-            <select class="custom-select" name="frame_rate">
-              <option>Choose...</option>
-              <option value="15"{% if device.frame_rate == "15" %} selected{% endif %}>15</option>
-              <option value="30"{% if device.frame_rate == "30" %} selected{% endif %}>30</option>
-              <option value="60"{% if device.frame_rate == "60" %} selected{% endif %}>60</option>
-            </select>
-          </div>
+          <input type="hidden" name="frame_rate" value="{{ device.frame_rate }}"/>
           <div class="form-group">
             <label for="url">Refresh Rate</label>
             <select class="custom-select" name="refresh_rate">
