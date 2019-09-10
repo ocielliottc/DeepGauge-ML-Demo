@@ -249,7 +249,7 @@ def pull_reading(device):
                                                           update_device.low_threshold)
     if (message is not None):
         user = User.query.filter(User.id == update_device.id_user).one_or_none()
-        if (user is not None):
+        if (user is not None and user.cell_number.strip()):
             try:
                 ## Create an SNS client in the us-east-1 region.
                 ## This service is not available in us-east-2.
@@ -296,7 +296,7 @@ def schedule_device(device):
         current_time = datetime.now()
         next_start = datetime(current_time.year, current_time.month, current_time.day,
                               current_time.hour, last_time.minute,
-                              last_time.second + 5)
+                              last_time.second) + timedelta(seconds=5)
         while(next_start <= current_time):
             next_start = next_start + timedelta(seconds=int(device.refresh_rate))
 
