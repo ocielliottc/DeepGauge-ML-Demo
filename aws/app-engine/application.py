@@ -30,7 +30,7 @@ default_settings = {
   'region': 'us-east-2',
   'device': {'type': 'Gauge',
              'frame_rate': '15',
-             'refresh_rate': '30'
+             'refresh_rate': '5'
             }
 }
 
