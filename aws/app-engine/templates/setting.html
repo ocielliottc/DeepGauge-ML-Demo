@@ -28,8 +28,6 @@
             <label for="default_refresh_rate">Default Refresh Rate</label>
             <select class="form-control" name="refresh_rate">
               <option>Choose...</option>
-              <option value="5"{% if settings.refresh_rate == "5" %} selected{% endif %}>5 seconds</option>
-              <option value="15"{% if settings.refresh_rate == "15" %} selected{% endif %}>15 seconds</option>
               <option value="30"{% if settings.refresh_rate == "30" %} selected{% endif %}>30 seconds</option>
               <option value="60"{% if settings.refresh_rate == "60" %} selected{% endif %}>1 minutes</option>
               <option value="300"{% if settings.refresh_rate == "300" %} selected{% endif %}>5 minutes</option>
