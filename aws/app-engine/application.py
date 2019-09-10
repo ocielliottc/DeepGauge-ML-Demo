@@ -3,7 +3,7 @@ from flask import Flask, Response, request, json, render_template, current_app, 
 import base64, json, logging, os, boto3, scrypt
 from config import db, application, connex_app
 from models import *
-from datetime import datetime
+from datetime import datetime, timedelta
 from PIL import Image
 from apscheduler.schedulers.background import BackgroundScheduler
 from flask_login import LoginManager, login_required, UserMixin, login_user, logout_user, current_user
@@ -133,7 +133,7 @@ class RemoteDevice:
                     self.db.put_item(TableName=tname,
                                      Item=item[self.item_name])
         except Exception as err:
-            print(err)
+            print("ERROR: " + str(err))
             pass
         return rate
 
@@ -163,18 +163,19 @@ class RemoteDevice:
                 else:
                     shard_it = out["NextShardIterator"]
         except Exception as err:
-          print(err)
+          print("ERROR: " + str(err))
           pass
 
         return readings
 
     def get_last_reading(self, name):
         if name is None or name is "":
-          return [0, 0]
+          return [0, 0, None]
 
         ## Get reading from Kinesis Data Stream
         value = 0
         percent = 0
+        last_time = None
 
         try:
             ## There isn't an easy way to get the last entry in a Kinesis
@@ -193,6 +194,7 @@ class RemoteDevice:
 
                 for o in out["Records"]:
                     self.last_reading_time[name] = o["ApproximateArrivalTimestamp"]
+                    last_time = o["ApproximateArrivalTimestamp"]
                     jdat = json.loads(o["Data"])
                     value = jdat['id']
                     percent = jdat['score']
@@ -202,10 +204,10 @@ class RemoteDevice:
                 else:
                     shard_it = out["NextShardIterator"]
         except Exception as err:
-          print(err)
+          print("ERROR: " + str(err))
           pass
 
-        return [value, percent]
+        return [value, percent, last_time]
 
     def get_kinesis_streams(self):
         streams = []
@@ -214,7 +216,7 @@ class RemoteDevice:
           for name in response['StreamNames']:
             streams.append(name)
         except Exception as err:
-            print(err)
+            print("ERROR: " + str(err))
             pass
 
         return streams
@@ -227,7 +229,7 @@ def pull_reading(device):
     update_device = Device.query.filter(Device.id == device).one_or_none()
     if update_device is None:
         ## If we cannot find the device, there's nothing to do
-        return
+        return None
 
     ## Get the last reading from the device and create the image
     gauge_size = 15
@@ -256,7 +258,7 @@ def pull_reading(device):
                 client.publish(PhoneNumber=user.cell_number,
                                Message=message)
             except Exception as err:
-               print(err)
+               print("ERROR: " + str(err))
                pass
 
     prediction = "psi " + str(values[0])
@@ -276,15 +278,33 @@ def pull_reading(device):
     update_device.updated = datetime.today()
     db.session.commit()
 
+    ## Return time time of the last reading (could be None)
+    return values[2]
+
 def schedule_device(device):
     ## This should be done for all real devices.  The device name
     ## corresponds to the name provided during provisioning.
-    pull_reading(device.id)
+    last_time = pull_reading(device.id)
+
+    if (last_time is None):
+        next_start = datetime.now() + timedelta(seconds=int(device.refresh_rate))
+    else:
+        ## Calculate the next job start time based on the last reading from
+        ## the device (with a 5 second buffer).  Including a timezone on the
+        ## next_start_time seems to cause issues with apscheduler when the
+        ## trigger occurs.
+        current_time = datetime.now()
+        next_start = datetime(current_time.year, current_time.month, current_time.day,
+                              current_time.hour, last_time.minute,
+                              last_time.second + 5)
+        while(next_start <= current_time):
+            next_start = next_start + timedelta(seconds=int(device.refresh_rate))
+
     if (scheduler.get_job(device.name) is not None):
         scheduler.remove_job(device.name)
     scheduler.add_job(func=lambda: pull_reading(device.id),
                       trigger="interval", seconds=int(device.refresh_rate),
-                      id=device.name)
+                      next_run_time=next_start, id=device.name)
 
 def make_database():
     create_initial_device = True
@@ -621,8 +641,11 @@ def show_device_setting(device_id):
 
             db.session.commit()
 
-            # Update the refresh rate in the remote device
+            ## Update the refresh rate in the remote device and reschedule
+            ## the device just in case the refresh rate has changed.
             remote_device.set_refresh_rate(query.name, refresh_rate)
+            schedule_device(query)
+
             return redirect("/device/{}".format(device_id))
         else:
             gauge_image.delete(device_id)
