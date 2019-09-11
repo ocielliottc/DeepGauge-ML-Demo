@@ -276,7 +276,10 @@ def pull_reading(device):
     ## Check the thresholds and send an SMS message, if necessary
     notifier.send(values[0], update_device)
 
-    prediction = "psi " + str(values[0])
+    if (values[0] != values[0]):
+        prediction = "undetermined"
+    else:
+        prediction = "psi " + str(values[0])
     accuracy = str(values[1]) + "%"
 
     schema = ReadingSchema()
