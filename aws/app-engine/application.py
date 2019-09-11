@@ -28,7 +28,7 @@ login_manager.init_app(app)
 default_settings = {
   'bucket': 'ocideepgauge-images',
   'region': 'us-east-2',
-  'device': {'type': 'Gauge',
+  'device': {'type': 'Camera',
              'frame_rate': '15',
              'refresh_rate': '30',
              'dashboard_refresh_rate': '5'
@@ -573,7 +573,7 @@ def new_device():
         name            = "",
         image           = '',
         bucket          = "s3://{0}".format(default_settings['bucket']),
-        type            = "Gauge",
+        type            = default_settings['device']['type'],
         prediction      = "",
         location        = "",  #TODO detect or update value from geo service
         frame_rate      = settings['frame_rate'],
