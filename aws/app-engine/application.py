@@ -206,14 +206,14 @@ class RemoteDevice:
         return readings
 
     def get_last_reading(self, name):
-        if name is None or name is "":
-          return [0, 0, None]
-
-        ## Get reading from Kinesis Data Stream
-        value = 0
+        value = float('nan')
         percent = 0
         last_time = None
 
+        if name is None or name is "":
+          return [value, percent, last_time]
+
+        ## Get reading from Kinesis Data Stream
         try:
             ## There isn't an easy way to get the last entry in a Kinesis
             ## Data Stream.  So, we are going to iterate over the values for the
