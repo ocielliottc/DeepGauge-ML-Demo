@@ -59,7 +59,12 @@
   function loadData(labels, data) {
 {% for key in rdata['readings'] %}
     labels.push('{{ key }}');
-    data.push({{ rdata['readings'][key] }});
+    if ("{{ rdata['readings'][key] }}" == "nan") {
+      data.push(NaN);
+    }
+    else {
+      data.push({{ rdata['readings'][key] }});
+    }
 {% endfor %}
     return '{{ rdata['date'] }}';
   }
