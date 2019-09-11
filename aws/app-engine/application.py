@@ -34,6 +34,37 @@ default_settings = {
             }
 }
 
+class ThresholdNotification:
+    def __init__(self):
+        self.sent = {}
+
+    def send(self, value, device):
+        user = User.query.filter(User.id == device.id_user).one_or_none()
+        if (user is not None and user.cell_number.strip() and
+            (user.id not in self.sent or self.sent[user.id] != value)):
+            ## Check the thresholds and send an SMS message, if necessary
+            message = None
+            if (value > device.high_threshold):
+                message = "{0} reading, {1}, is above {2}".format(device.name,
+                                                                  value,
+                                                                  device.high_threshold)
+            if (value < device.low_threshold):
+                message = "{0} reading, {1}, is below {2}".format(device.name,
+                                                                  value,
+                                                                  device.low_threshold)
+            if (message is not None):
+                try:
+                    ## Create an SNS client in the us-east-1 region.
+                    ## This service is not available in us-east-2.
+                    client = boto3.client('sns',
+                                          region_name='us-east-1')
+                    client.publish(PhoneNumber=user.cell_number,
+                                   Message=message)
+                    self.sent[user.id] = value
+                except Exception as err:
+                   print("ERROR: " + str(err))
+                   pass
+
 class AppUser(UserMixin):
     def __init__(self, id, display, admin):
         self.id = id
@@ -223,7 +254,7 @@ class RemoteDevice:
 
 gauge_image = GaugeImage()
 remote_device = RemoteDevice()
-
+notifier = ThresholdNotification()
 
 def pull_reading(device):
     update_device = Device.query.filter(Device.id == device).one_or_none()
@@ -238,28 +269,7 @@ def pull_reading(device):
     gauge_image.create(device, gauge_size, values[0])
 
     ## Check the thresholds and send an SMS message, if necessary
-    message = None
-    if (values[0] > update_device.high_threshold):
-        message = "{0} reading, {1}, is above {2}".format(update_device.name,
-                                                          values[0],
-                                                          update_device.high_threshold)
-    if (values[0] < update_device.low_threshold):
-        message = "{0} reading, {1}, is below {2}".format(update_device.name,
-                                                          values[0],
-                                                          update_device.low_threshold)
-    if (message is not None):
-        user = User.query.filter(User.id == update_device.id_user).one_or_none()
-        if (user is not None and user.cell_number.strip()):
-            try:
-                ## Create an SNS client in the us-east-1 region.
-                ## This service is not available in us-east-2.
-                client = boto3.client('sns',
-                                      region_name='us-east-1')
-                client.publish(PhoneNumber=user.cell_number,
-                               Message=message)
-            except Exception as err:
-               print("ERROR: " + str(err))
-               pass
+    notifier.send(values[0], update_device)
 
     prediction = "psi " + str(values[0])
     accuracy = str(values[1]) + "%"
@@ -294,9 +304,9 @@ def schedule_device(device):
         ## next_start_time seems to cause issues with apscheduler when the
         ## trigger occurs.
         current_time = datetime.now()
-        next_start = datetime(current_time.year, current_time.month, current_time.day,
-                              current_time.hour, last_time.minute,
-                              last_time.second) + timedelta(seconds=5)
+        next_start = datetime(current_time.year, current_time.month,
+                              current_time.day, current_time.hour,
+                              last_time.minute, last_time.second) + timedelta(seconds=5)
         while(next_start <= current_time):
             next_start = next_start + timedelta(seconds=int(device.refresh_rate))
 
