@@ -541,8 +541,8 @@ def add_user():
         schema = UserSchema()
         data = schema.dump(user)
 
-        ## TODO: Perform a more extensive check of the password
-        if (len(password) < 2):
+        ## Require a minimum of 8 characters
+        if (len(password) < 8):
             ## This is an invalid password
             message = "Please choose a password with a minimum of 8 characters"
         else:
