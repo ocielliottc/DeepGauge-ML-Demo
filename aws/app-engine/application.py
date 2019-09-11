@@ -105,6 +105,11 @@ class GaugeImage:
         return '/' + self.get_local_name(device_id)
 
     def create(self, device_id, size, value):
+        ## Check for NaN.  If it is, we want to have the needle point to
+        ## something below 0, but not too far below 0.
+        if (value != value):
+            value = -.05
+
         background = Image.open(self.image_dir + '/gauge_' + str(size) + '.png')
         needle = Image.open(self.image_dir + '/needle.png')
         needle = needle.rotate(132 - (value * 18))
