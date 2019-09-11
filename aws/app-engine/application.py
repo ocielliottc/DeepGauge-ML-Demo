@@ -30,7 +30,8 @@ default_settings = {
   'region': 'us-east-2',
   'device': {'type': 'Gauge',
              'frame_rate': '15',
-             'refresh_rate': '30'
+             'refresh_rate': '30',
+             'dashboard_refresh_rate': '5'
             }
 }
 
@@ -381,6 +382,14 @@ def make_database():
 with app.test_request_context():
      make_database()
 
+def get_current_user_settings():
+    settings = default_settings['device']
+    query = Setting.query.filter(Setting.id_user == current_user.get_id()).one_or_none()
+    if query is not None:
+        schema = SettingSchema()
+        settings = schema.dump(query)
+    return settings
+
 @login_manager.user_loader
 def load_user(user_id):
     return AppUser.get(user_id)
@@ -393,6 +402,8 @@ def root():
         auto_login_primary_user = False
         login_user(AppUser.get(1))
 
+    settings = get_current_user_settings()
+
     query = Device.query.filter(Device.id_user == current_user.get_id()).order_by(Device.id)
 
     # Serialize the data for the response
@@ -402,7 +413,7 @@ def root():
         date_time_obj = datetime.strptime(data[idx]['updated'], '%Y-%m-%dT%H:%M:%S.%f')
         data[idx]['updated'] = date_time_obj.strftime('%B %d, %Y, %H:%M:%S')
 
-    return render_template('dashboard.html', devices=data)
+    return render_template('dashboard.html', devices=data, settings=settings)
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -443,14 +454,15 @@ def setting():
         type = request.form.get('device_type')
         frame_rate = request.form.get('frame_rate')
         refresh_rate = request.form.get('refresh_rate')
+        dashboard_refresh_rate = request.form.get('dashboard_refresh_rate')
 
         ## Store settings in local database
         if query is None:
-            settings = Setting(id = 0,
-                               id_user = current_user.get_id(),
+            settings = Setting(id_user = current_user.get_id(),
                                type = type,
                                frame_rate = frame_rate,
                                refresh_rate = refresh_rate,
+                               dashboard_refresh_rate = dashboard_refresh_rate,
                                updated = datetime.today()
                               )
             db.session.add(settings)
@@ -458,6 +470,7 @@ def setting():
             query.type = type
             query.frame_rate = frame_rate
             query.refresh_rate = refresh_rate
+            query.dashboard_refresh_rate = dashboard_refresh_rate
             query.updated = datetime.today()
 
         db.session.commit()
@@ -551,11 +564,7 @@ def add_user():
 @login_required
 def new_device():
     ## Get the defaults from the database
-    settings = default_settings['device']
-    query = Setting.query.one_or_none()
-    if query is not None:
-      settings['frame_rate'] = query.frame_rate
-      settings['refresh_rate'] = query.refresh_rate
+    settings = get_current_user_settings()
 
     # Create a new Device entry
     schema = DeviceSchema()

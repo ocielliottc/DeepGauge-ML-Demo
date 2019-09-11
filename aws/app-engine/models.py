@@ -8,6 +8,7 @@ class Setting(db.Model):
     type = db.Column(db.String(32))
     frame_rate = db.Column(db.String(32))
     refresh_rate = db.Column(db.String(32))
+    dashboard_refresh_rate = db.Column(db.String(32))
     updated = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )

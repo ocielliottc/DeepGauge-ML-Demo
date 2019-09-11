@@ -2,7 +2,7 @@
 
 {% block content %}
 {% if devices %}
-<meta http-equiv="refresh" content="5">
+<meta http-equiv="refresh" content="{{ settings.dashboard_refresh_rate }}">
 {% endif %}
 <div id="content">
     <article class="container-fluid">
