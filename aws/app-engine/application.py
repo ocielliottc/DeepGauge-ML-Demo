@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from PIL import Image
 from apscheduler.schedulers.background import BackgroundScheduler
 from flask_login import LoginManager, login_required, UserMixin, login_user, logout_user, current_user
+from ip2geotools.databases.noncommercial import DbIpCity
 
 # To deploy this on elastic beanstalk, the app needs to be named application.
 # But, since this was originally written without AWS in mind, it's referenced
@@ -566,6 +567,15 @@ def new_device():
     ## Get the defaults from the database
     settings = get_current_user_settings()
 
+    ## Get the location of the caller
+    city = ''
+    try:
+        if (len(request.access_route) > 0):
+            location = DbIpCity.get(request.access_route[0], api_key='free')
+            city = location.city
+    except:
+        pass
+
     # Create a new Device entry
     schema = DeviceSchema()
     device = Device(
@@ -575,7 +585,7 @@ def new_device():
         bucket          = "s3://{0}".format(default_settings['bucket']),
         type            = default_settings['device']['type'],
         prediction      = "",
-        location        = "",  #TODO detect or update value from geo service
+        location        = city,
         frame_rate      = settings['frame_rate'],
         refresh_rate    = settings['refresh_rate'],
         notes           = "",

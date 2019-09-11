@@ -8,3 +8,4 @@ boto3==1.9.199
 marshmallow-sqlalchemy==0.17.0
 Pillow==6.1.0
 scrypt==0.8.13
+ip2geotools==0.1.5
