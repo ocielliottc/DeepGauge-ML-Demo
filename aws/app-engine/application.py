@@ -99,6 +99,7 @@ class AppUser(UserMixin):
 class GaugeImage:
     def __init__(self):
         self.image_dir = 'static/img'
+        self.allow_generation = False
 
     def get_local_name(self, device_id):
         return self.image_dir + '/live_device' + str(device_id) + '.png'
@@ -107,16 +108,17 @@ class GaugeImage:
         return '/' + self.get_local_name(device_id)
 
     def create(self, device_id, size, value):
-        ## Check for NaN.  If it is, we want to have the needle point to
-        ## something below 0, but not too far below 0.
-        if (value != value):
-            value = -.05
+        if (self.allow_generation):
+            ## Check for NaN.  If it is, we want to have the needle point to
+            ## something below 0, but not too far below 0.
+            if (value != value):
+                value = -.05
 
-        background = Image.open(self.image_dir + '/gauge_' + str(size) + '.png')
-        needle = Image.open(self.image_dir + '/needle.png')
-        needle = needle.rotate(132 - (value * 18))
-        background.paste(needle, (0, 0), needle)
-        background.save(self.get_local_name(device_id))
+            background = Image.open(self.image_dir + '/gauge_' + str(size) + '.png')
+            needle = Image.open(self.image_dir + '/needle.png')
+            needle = needle.rotate(132 - (value * 18))
+            background.paste(needle, (0, 0), needle)
+            background.save(self.get_local_name(device_id))
 
     def delete(self, device_id):
         try:
@@ -347,7 +349,7 @@ def make_database():
             bucket          = "s3://{0}".format(default_settings['bucket']),
             type            = "RaspberryPi",
             location        = "St. Louis",
-            prediction      = "PSI 0",
+            prediction      = "UNDETERMINED",
             frame_rate      = default_settings['device']['frame_rate'],
             refresh_rate    = remote_device.get_refresh_rate(dev_name),
             notes           = "Camera attached to a RaspberryPi",
@@ -393,7 +395,9 @@ def get_current_user_settings():
 
 @login_manager.user_loader
 def load_user(user_id):
-    return AppUser.get(user_id)
+    loaded = AppUser.get(user_id)
+    gauge_image.allow_generation = (loaded is not None)
+    return loaded
 
 auto_login_primary_user = False
 @app.route('/')
@@ -402,6 +406,7 @@ def root():
     if (auto_login_primary_user):
         auto_login_primary_user = False
         login_user(AppUser.get(1))
+        gauge_image.allow_generation = True
 
     settings = get_current_user_settings()
 
@@ -429,6 +434,7 @@ def login():
                                    message='Unknown user or incorrect password')
 
         login_user(AppUser(query.id, query.display_name, query.admin))
+        gauge_image.allow_generation = True
 
         query = Device.query.filter(Device.id_user == current_user.get_id()).all()
         for device in query:
@@ -440,11 +446,8 @@ def login():
 
 @app.route('/logout')
 def logout():
-    query = Device.query.filter(Device.id_user == current_user.get_id()).all()
-    for device in query:
-        if (scheduler.get_job(device.name) is not None):
-            scheduler.remove_job(device.name)
     logout_user()
+    gauge_image.allow_generation = False
     return redirect('/')
 
 @app.route('/setting', methods=['GET', 'POST'])
@@ -719,5 +722,5 @@ def server_error(e):
 scheduler.start()
 
 if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=8080, debug=True)
+    app.run(host='127.0.0.1', port=8080, debug=True, use_reloader=False)
 # [START gae_python37_render_template]
