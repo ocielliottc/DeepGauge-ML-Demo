@@ -49,6 +49,7 @@ class Device(db.Model):
     notes = db.Column(db.String(64))
     high_threshold = db.Column(db.Integer)
     low_threshold = db.Column(db.Integer)
+    units = db.Column(db.String(32))
     updated = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )

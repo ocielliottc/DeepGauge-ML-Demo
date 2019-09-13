@@ -69,9 +69,23 @@
             <select class="custom-select" name="refresh_rate">
               <option>Choose...</option>
               <option value="30"{% if device.refresh_rate == "30" %} selected{% endif %}>30 seconds</option>
-              <option value="60"{% if device.refresh_rate == "60" %} selected{% endif %}>1 minutes</option>
+              <option value="60"{% if device.refresh_rate == "60" %} selected{% endif %}>1 minute</option>
               <option value="300"{% if device.refresh_rate == "300" %} selected{% endif %}>5 minutes</option>
             </select>
+          </div>
+          <div class="form-group">
+            <label>Device Units</label>
+            <div class="input-group">
+              <input type="text" class="form-control" id="units" name="units" value="{{ device.units }}">
+              <div class="input-group-append">
+                <button type="button" class="btn btn-outline-secondary my-dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"/>
+                <div id="device_units" class="dropdown-menu dropdown-menu-right">
+                  {% for units in ['psi', 'bar', 'l', 'ml', 'gal', '°C', '°F', 'pH'] %}
+                  <a class="dropdown-item" href="#" onClick="document.getElementById('units').value = '{{ units }}'"{% if device.units == units %} selected{% endif %}>{{ units }}</a>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
           </div>
           <div class="form-group">
             <label for="exampleFormControlTextarea1">Notes</label>
@@ -108,6 +122,7 @@
 <script>
 $(document).ready(function() {
   $('#device_names').width($('#name').width() + 50);
+  $('#device_units').width($('#units').width() + 50);
 });
 </script>
 {% endblock %}

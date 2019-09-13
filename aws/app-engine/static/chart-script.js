@@ -11,7 +11,7 @@ window.chartColors = {
 $(document).ready(function() {
   var labels = [];
   var data = [];
-  var date = loadData(labels, data);
+  var info = loadData(labels, data);
 
   var ctx = document.getElementById('myChart').getContext('2d');
   ctx.canvas.height = 100;
@@ -22,7 +22,7 @@ $(document).ready(function() {
     data: {
       labels: labels,
       datasets: [{
-        label: date,
+        label: info[0],
         backgroundColor: color(window.chartColors.red).alpha(0.5).rgbString(),
         borderColor: window.chartColors.red,
         data: data,
@@ -44,7 +44,7 @@ $(document).ready(function() {
         yAxes: [{
           scaleLabel: {
             display: true,
-            labelString: 'Pressure - PSI'
+            labelString: info[1]
           }
         }]
       }

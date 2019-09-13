@@ -295,7 +295,7 @@ def pull_reading(device):
     if (values[0] != values[0]):
         prediction = "UNDETERMINED"
     else:
-        prediction = "PSI " + str(values[0])
+        prediction = str(values[0]) + " " + update_device.units
     accuracy = str(values[1]) + "%"
 
     schema = ReadingSchema()
@@ -366,7 +366,8 @@ def make_database():
             refresh_rate    = remote_device.get_refresh_rate(dev_name),
             notes           = "Camera attached to a RaspberryPi",
             high_threshold  = 15,
-            low_threshold   = 0
+            low_threshold   = 0,
+            units           = "psi"
         )
 
         db.session.add(d)
@@ -614,7 +615,8 @@ def new_device():
         refresh_rate    = settings['refresh_rate'],
         notes           = "",
         high_threshold  = 15,
-        low_threshold   = 0
+        low_threshold   = 0,
+        units           = ""
     )
 
     # Add the device to the database
@@ -646,6 +648,7 @@ def one_device(device_id):
     ## rendering engine.
     first = True
     rdata = {'date': '',
+             'units': query.units,
              'readings': {}}
     readings = remote_device.get_readings(query.name)
     for timestamp in readings:
@@ -685,6 +688,7 @@ def show_device_setting(device_id):
             notes = request.form.get('notes')
             high_threshold = request.form.get('high_threshold')
             low_threshold = request.form.get('low_threshold')
+            units = request.form.get('units')
 
             ## Store settings in local database
             if query is None:
@@ -698,6 +702,7 @@ def show_device_setting(device_id):
                 query.notes = notes
                 query.high_threshold = high_threshold
                 query.low_threshold = low_threshold
+                query.units = units
                 query.updated = datetime.today()
 
             db.session.commit()
