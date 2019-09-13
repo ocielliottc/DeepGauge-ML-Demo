@@ -8,6 +8,7 @@ from PIL import Image
 from apscheduler.schedulers.background import BackgroundScheduler
 from flask_login import LoginManager, login_required, UserMixin, login_user, logout_user, current_user
 from ip2geotools.databases.noncommercial import DbIpCity
+from digital import Digital
 
 # To deploy this on elastic beanstalk, the app needs to be named application.
 # But, since this was originally written without AWS in mind, it's referenced
@@ -32,7 +33,8 @@ default_settings = {
   'device': {'type': 'Camera',
              'frame_rate': '15',
              'refresh_rate': '30',
-             'dashboard_refresh_rate': '5'
+             'dashboard_refresh_rate': '5',
+             'gauge_display': 'analog',
             }
 }
 
@@ -100,6 +102,7 @@ class GaugeImage:
     def __init__(self):
         self.image_dir = 'static/img'
         self.allow_generation = False
+        self.digital = False
 
     def get_local_name(self, device_id):
         return self.image_dir + '/live_device' + str(device_id) + '.png'
@@ -109,15 +112,24 @@ class GaugeImage:
 
     def create(self, device_id, size, value):
         if (self.allow_generation):
-            ## Check for NaN.  If it is, we want to have the needle point to
-            ## something below 0, but not too far below 0.
-            if (value != value):
-                value = -.05
+            if (self.digital):
+                background = Image.open(self.image_dir + '/digital.png')
+                if (value == value):
+                    Digital.height = 46
+                    Digital.width = 26
+                    Digital.drawNumber(background, 45, 65,
+                                       "{:4.1f}".format(value))
+            else:
+                ## Check for NaN.  If it is, we want to have the needle point to
+                ## something below 0, but not too far below 0.
+                if (value != value):
+                    value = -.05
 
-            background = Image.open(self.image_dir + '/gauge_' + str(size) + '.png')
-            needle = Image.open(self.image_dir + '/needle.png')
-            needle = needle.rotate(132 - (value * 18))
-            background.paste(needle, (0, 0), needle)
+                background = Image.open(self.image_dir + '/gauge_' + str(size) + '.png')
+                needle = Image.open(self.image_dir + '/needle.png')
+                needle = needle.rotate(132 - (value * 18))
+                background.paste(needle, (0, 0), needle)
+
             background.save(self.get_local_name(device_id))
 
     def delete(self, device_id):
@@ -281,9 +293,9 @@ def pull_reading(device):
     notifier.send(values[0], update_device)
 
     if (values[0] != values[0]):
-        prediction = "undetermined"
+        prediction = "UNDETERMINED"
     else:
-        prediction = "psi " + str(values[0])
+        prediction = "PSI " + str(values[0])
     accuracy = str(values[1]) + "%"
 
     schema = ReadingSchema()
@@ -296,7 +308,7 @@ def pull_reading(device):
     db.session.add(reading)
     db.session.commit()
 
-    update_device.prediction = prediction.replace("_"," ").upper()
+    update_device.prediction = prediction
     update_device.updated = datetime.today()
     db.session.commit()
 
@@ -409,7 +421,7 @@ def root():
         gauge_image.allow_generation = True
 
     settings = get_current_user_settings()
-
+    gauge_image.digital = (settings['gauge_display'] == 'digital')
     query = Device.query.filter(Device.id_user == current_user.get_id()).order_by(Device.id)
 
     # Serialize the data for the response
@@ -459,6 +471,13 @@ def setting():
         frame_rate = request.form.get('frame_rate')
         refresh_rate = request.form.get('refresh_rate')
         dashboard_refresh_rate = request.form.get('dashboard_refresh_rate')
+        gauge_display = request.form.get('gauge_display')
+
+        current_display = query.gauge_display if (query is not None) else default_settings['device']['gauge_display']
+        if (current_display != gauge_display):
+            devs = Device.query.filter(Device.id_user == current_user.get_id())
+            for dev in devs:
+                gauge_image.delete(dev.id)
 
         ## Store settings in local database
         if query is None:
@@ -467,6 +486,7 @@ def setting():
                                frame_rate = frame_rate,
                                refresh_rate = refresh_rate,
                                dashboard_refresh_rate = dashboard_refresh_rate,
+                               gauge_display = gauge_display,
                                updated = datetime.today()
                               )
             db.session.add(settings)
@@ -475,6 +495,7 @@ def setting():
             query.frame_rate = frame_rate
             query.refresh_rate = refresh_rate
             query.dashboard_refresh_rate = dashboard_refresh_rate
+            query.gauge_display = gauge_display
             query.updated = datetime.today()
 
         db.session.commit()

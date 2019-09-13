@@ -43,6 +43,13 @@
               <option value="300"{% if settings.dashboard_refresh_rate == "300" %} selected{% endif %}>5 minutes</option>
             </select>
           </div>
+          <div class="form-group">
+            <label for="gauge_display">Dashboard Gauge Display</label>
+            <select class="form-control" name="gauge_display">
+              <option value="analog"{% if settings.gauge_display == "analog" %} selected{% endif %}>Analog</option>
+              <option value="digital"{% if settings.gauge_display == "digital" %} selected{% endif %}>Digital</option>
+            </select>
+          </div>
           <button type="submit" class="btn btn-primary">Submit</button>
         </form>
       </div>
