@@ -46,30 +46,34 @@ class ThresholdNotification:
 
     def send(self, value, device):
         user = User.query.filter(User.id == device.id_user).one_or_none()
-        if (user is not None and user.cell_number.strip() and
-            (user.id not in self.sent or self.sent[user.id] != value)):
-            ## Check the thresholds and send an SMS message, if necessary
-            message = None
-            if (value > device.high_threshold):
-                message = "{0} reading, {1}, is above {2}".format(device.name,
-                                                                  value,
-                                                                  device.high_threshold)
-            if (value < device.low_threshold):
-                message = "{0} reading, {1}, is below {2}".format(device.name,
-                                                                  value,
-                                                                  device.low_threshold)
-            if (message is not None):
-                try:
-                    ## Create an SNS client in the us-east-1 region.
-                    ## This service is not available in us-east-2.
-                    client = boto3.client('sns',
-                                          region_name='us-east-1')
-                    client.publish(PhoneNumber=user.cell_number,
-                                   Message=message)
-                    self.sent[user.id] = value
-                except Exception as err:
-                   print("ERROR: " + str(err))
-                   pass
+        alert = False
+        if (user is not None):
+            alert = (value > device.high_threshold or value < device.low_threshold)
+            if (user.cell_number.strip() and
+                (user.id not in self.sent or self.sent[user.id] != value)):
+                ## Check the thresholds and send an SMS message, if necessary
+                message = None
+                if (value > device.high_threshold):
+                    message = "{0} reading, {1}, is above {2}".format(device.name,
+                                                                      value,
+                                                                      device.high_threshold)
+                if (value < device.low_threshold):
+                    message = "{0} reading, {1}, is below {2}".format(device.name,
+                                                                      value,
+                                                                      device.low_threshold)
+                if (message is not None):
+                    try:
+                        ## Create an SNS client in the us-east-1 region.
+                        ## This service is not available in us-east-2.
+                        client = boto3.client('sns',
+                                              region_name='us-east-1')
+                        client.publish(PhoneNumber=user.cell_number,
+                                       Message=message)
+                        self.sent[user.id] = value
+                    except Exception as err:
+                       print("ERROR: " + str(err))
+                       pass
+        return alert
 
 class AppUser(UserMixin):
     def __init__(self, id, display, admin):
@@ -366,7 +370,7 @@ def pull_reading(device):
                        update_device.low_threshold,update_device.high_threshold)
 
     ## Check the thresholds and send an SMS message, if necessary
-    notifier.send(values[0], update_device)
+    alert = notifier.send(values[0], update_device)
 
     if (values[0] != values[0]):
         prediction = "UNDETERMINED"
@@ -379,7 +383,9 @@ def pull_reading(device):
         id_device   = device,
         prediction  = prediction,
         accuracy    = accuracy,
-        body        = '[{}]'
+        alert       = alert,
+        body        = '[{}]',
+        timestamp   = values[2]
     )
     db.session.add(reading)
     db.session.commit()
@@ -737,10 +743,15 @@ def one_device(device_id):
           first = False
           rdata['date'] = timestamp.strftime('%B %d, %Y')
       key = timestamp.strftime('%H:%M:%S')
-      rdata['readings'][key] = str(readings[timestamp][0])
+      rdata['readings'][key] = [str(readings[timestamp][0]), False]
 
     query_reading = Reading.query.filter(Reading.id_device == device_id).all()
     if query_reading is not None and len(query_reading) > 0:
+        ## Look for alert level readings set the flag to True
+        for r in query_reading:
+          if (r.alert):
+              key = r.timestamp.strftime('%H:%M:%S')
+              rdata['readings'][key][1] = True
 
         # Serialize the data for the response
         schema = ReadingSchema()

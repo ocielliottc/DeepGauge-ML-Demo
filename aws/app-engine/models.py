@@ -24,6 +24,7 @@ class Reading(db.Model):
     id_device = db.Column(db.Integer)
     prediction = db.Column(db.String(64))
     accuracy = db.Column(db.String(64))
+    alert = db.Column(db.Boolean)
     body = db.Column(db.String(128))
     timestamp = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow

@@ -56,15 +56,11 @@
 
 {% block script %}
 <script>
-  function loadData(labels, data) {
+  function loadData(labels, data, alerts) {
 {% for key in rdata['readings'] %}
     labels.push('{{ key }}');
-    if ("{{ rdata['readings'][key] }}" == "nan") {
-      data.push(NaN);
-    }
-    else {
-      data.push({{ rdata['readings'][key] }});
-    }
+    data.push({% if rdata['readings'][key][0] == rdata['readings'][key][0] %}{{ rdata['readings'][key][0] }}{% else %}NaN{% endif %});
+    alerts.push({% if rdata['readings'][key][1] %}{{ rdata['readings'][key][0] }}{% else %}NaN{% endif %});
 {% endfor %}
     return ['{{ rdata['date'] }}', '{{ rdata['units'] }}'];
   }
