@@ -78,3 +78,17 @@ class UserSchema(ma.ModelSchema):
     class Meta:
         model = User
         sqla_session = db.session
+###
+class Notification(db.Model):
+    __tablename__ = "notification"
+    id = db.Column(db.Integer, primary_key=True)
+    id_user = db.Column(db.Integer)
+    id_device = db.Column(db.Integer)
+    text = db.Column(db.String(160))
+    updated = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+class NotificationSchema(ma.ModelSchema):
+    class Meta:
+        model = Notification
+        sqla_session = db.session

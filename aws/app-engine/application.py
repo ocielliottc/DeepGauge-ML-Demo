@@ -70,6 +70,13 @@ class ThresholdNotification:
                         client.publish(PhoneNumber=user.cell_number,
                                        Message=message)
                         self.sent[user.id] = value
+
+                        schema = NotificationSchema()
+                        notification = Notification(id_user = user.id,
+                                                    id_device = device.id,
+                                                    text = message) 
+                        db.session.add(notification)
+                        db.session.commit()
                     except Exception as err:
                        print("ERROR: " + str(err))
                        pass
@@ -749,7 +756,7 @@ def one_device(device_id):
     if query_reading is not None and len(query_reading) > 0:
         ## Look for alert level readings set the flag to True
         for r in query_reading:
-          if (r.alert):
+          if (r.alert and key in rdata['readings']):
               key = r.timestamp.strftime('%H:%M:%S')
               rdata['readings'][key][1] = True
 
@@ -762,8 +769,15 @@ def one_device(device_id):
     else:
         reading = []
 
+    messages = []
+    notifications = Notification.query.filter(Notification.id_user == current_user.get_id() and Notification.id_device == device_id).all()
+    for notification in notifications:
+        messages.append(notification.updated.strftime('%Y-%m-%dT%H:%M:%S') +
+                        ': ' + notification.text)
+
     return render_template('one_device.html',
-                           device=data, reading=reading, rdata=rdata)
+                           device=data, reading=reading, rdata=rdata,
+                           messages=messages)
 
 @app.route('/device/setting/<int:device_id>', methods=['GET', 'POST'])
 @login_required

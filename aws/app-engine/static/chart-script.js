@@ -25,7 +25,7 @@ $(document).ready(function() {
       labels: labels,
       datasets: [
       {
-        label: 'Alerts',
+        label: 'Threshold',
         backgroundColor: color(window.chartColors.red).alpha(0.5).rgbString(),
         borderColor: window.chartColors.red,
         data: alerts,
