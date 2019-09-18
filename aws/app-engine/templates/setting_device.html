@@ -102,6 +102,17 @@
               <img class="img-fluid" src="{{device.image}}" alt="Device Image">
           </div>
           <div class="form-group">
+            <label for="gauge_values">Gauge Values</label>
+            <div class="form-row">
+              <label class="col-sm-2 col-form-label">Max:</label>
+              <input type="number" class="form-control col-sm-10" name="maximum"  value="{{device.maximum}}"/>
+            </div>
+            <div class="form-row">
+              <label class="col-sm-2 col-form-label">Min:</label>
+              <input type="number" class="form-control col-sm-10" name="minimum"  value="{{device.minimum}}"/>
+            </div>
+          </div>
+          <div class="form-group">
             <label for="threshold">Thresholds</label>
             <div class="form-row">
               <label class="col-sm-2 col-form-label">High:</label>

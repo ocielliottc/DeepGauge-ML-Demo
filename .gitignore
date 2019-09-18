@@ -74,3 +74,4 @@ gen
 google-cloud-vision-api/*
 test-shadow-removal/*
 aws/app-engine/static/img/live_device*.png
+aws/app-engine/static/img/gauge_*.png

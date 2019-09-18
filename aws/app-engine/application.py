@@ -4,11 +4,13 @@ import base64, json, logging, os, boto3, scrypt
 from config import db, application, connex_app
 from models import *
 from datetime import datetime, timedelta
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 from apscheduler.schedulers.background import BackgroundScheduler
 from flask_login import LoginManager, login_required, UserMixin, login_user, logout_user, current_user
 from ip2geotools.databases.noncommercial import DbIpCity
 from digital import Digital
+import math
+import os.path
 
 # To deploy this on elastic beanstalk, the app needs to be named application.
 # But, since this was originally written without AWS in mind, it's referenced
@@ -103,6 +105,9 @@ class GaugeImage:
         self.image_dir = 'static/img'
         self.allow_generation = False
         self.digital = False
+        self.needle_start = 132
+        self.font_offset = 8
+        self.arc = 270
 
     def get_local_name(self, device_id):
         return self.image_dir + '/live_device' + str(device_id) + '.png'
@@ -110,25 +115,94 @@ class GaugeImage:
     def get_name(self, device_id):
         return '/' + self.get_local_name(device_id)
 
-    def create(self, device_id, size, value):
+    def create_background(self, bname, low, high):
+        if (os.path.exists(bname)):
+            return Image.open(bname)
+        else:
+            background = Image.open(self.image_dir + '/gauge.png')
+            hw = background.size[0] / 2
+            hh = background.size[1] / 2
+            draw = ImageDraw.Draw(background)
+            font = ImageFont.truetype('Poppins-Regular.ttf', 10)
+            for value in range(low, high + 1):
+                radian = ((value * self.arc / ((high - low) + 1)) +
+                         self.needle_start + self.font_offset) * math.pi / 180
+                x = int(((hw * 7) / 9) * math.cos(radian)) + hw - 5
+                y = int(((hh * 7) / 9) * math.sin(radian)) + hh - 5
+                draw.text((x, y), str(value), font=font, fill=(0,0,0))
+            background.save(bname)
+            return background
+
+    def create(self, device_id, low, high, value, alert_low, alert_high):
         if (self.allow_generation):
             if (self.digital):
                 background = Image.open(self.image_dir + '/digital.png')
                 if (value == value):
                     Digital.height = 46
                     Digital.width = 26
+                    Digital.color = (0,0,0)
+                    Digital.line_width = 3
                     Digital.drawNumber(background, 45, 65,
                                        "{:4.1f}".format(value))
+
+                    Digital.color = (255,0,0)
+                    Digital.height = 8
+                    Digital.width = 4
+                    Digital.line_width = 2
+                    Digital.drawNumber(background, 126, 39,
+                                       "{:2}".format(alert_high))
+                    Digital.drawNumber(background, 126, 129,
+                                       "{:2}".format(alert_low))
             else:
                 ## Check for NaN.  If it is, we want to have the needle point to
                 ## something below 0, but not too far below 0.
                 if (value != value):
                     value = -.05
 
-                background = Image.open(self.image_dir + '/gauge_' + str(size) + '.png')
-                needle = Image.open(self.image_dir + '/needle.png')
-                needle = needle.rotate(132 - (value * 18))
-                background.paste(needle, (0, 0), needle)
+                try:
+                    bname = self.image_dir + '/gauge_{0}-{1}.png'.format(low, high)
+                    background = self.create_background(bname, low, high)
+                    needle = Image.open(self.image_dir + '/needle.png')
+                    needle = needle.rotate(self.needle_start - (value * self.arc / ((high - low) + 1)))
+                    background.paste(needle, (0, 0), needle)
+
+                    hw = background.size[0] / 2
+                    hh = background.size[1] / 2
+                    draw = ImageDraw.Draw(background)
+                    for value in [ alert_low, alert_high ]:
+                        angle = ((value * self.arc / ((high - low) + 1)) +
+                                 self.needle_start + self.font_offset)
+                        radian = angle * math.pi / 180
+                        x = int(hw * math.cos(radian)) + hw
+                        y = int(hh * math.sin(radian)) + hh + 1
+                        ## Top left
+                        if (x < hw and y < hh):
+                            lx = x - 1
+                            rx = x + 6
+                            ty = y + 1
+                            by = y + 8
+                        ## Top right
+                        elif (x >= hw and y < hh):
+                            lx = x - 4
+                            rx = x + 3
+                            ty = y + 2
+                            by = y + 9
+                        ## Bottom left
+                        elif (x < hw and y >= hh):
+                            lx = x + 1
+                            rx = x + 8
+                            ty = y - 2
+                            by = y + 5
+                        ## Bottom right
+                        else:
+                            lx = x - 9
+                            rx = x - 2
+                            ty = y - 2
+                            by = y + 5
+                        draw.ellipse([lx, ty, rx, by], fill=(255,0,0))
+                except Exception as err:
+                    print("ERROR: " + err)
+                    pass
 
             background.save(self.get_local_name(device_id))
 
@@ -284,10 +358,12 @@ def pull_reading(device):
         return None
 
     ## Get the last reading from the device and create the image
-    gauge_size = 15
+    gauge_low = update_device.minimum
+    gauge_high = update_device.maximum
     name = update_device.name
     values = remote_device.get_last_reading(name)
-    gauge_image.create(device, gauge_size, values[0])
+    gauge_image.create(device, gauge_low, gauge_high, values[0],
+                       update_device.low_threshold,update_device.high_threshold)
 
     ## Check the thresholds and send an SMS message, if necessary
     notifier.send(values[0], update_device)
@@ -367,6 +443,8 @@ def make_database():
             notes           = "Camera attached to a RaspberryPi",
             high_threshold  = 15,
             low_threshold   = 0,
+            maximum         = 15,
+            minimum         = 0,
             units           = "psi"
         )
 
@@ -390,6 +468,7 @@ def make_database():
         d.image = gauge_image.get_name(d.id)
         db.session.commit()
 
+        gauge_image.delete(d.id)
         schedule_device(d)
 
     return True
@@ -616,6 +695,8 @@ def new_device():
         notes           = "",
         high_threshold  = 15,
         low_threshold   = 0,
+        maximum         = 15,
+        minimum         = 0,
         units           = ""
     )
 
@@ -680,6 +761,8 @@ def show_device_setting(device_id):
         query = Device.query.filter(Device.id == device_id).one_or_none()
         delete = request.form.get('delete')
         if (delete == None):
+            rebuild_image = False
+
             ## Save the values in the local database
             name = request.form.get('name')
             type = request.form.get('device_type')
@@ -688,6 +771,8 @@ def show_device_setting(device_id):
             notes = request.form.get('notes')
             high_threshold = request.form.get('high_threshold')
             low_threshold = request.form.get('low_threshold')
+            maximum = request.form.get('maximum')
+            minimum = request.form.get('minimum')
             units = request.form.get('units')
 
             ## Store settings in local database
@@ -695,6 +780,10 @@ def show_device_setting(device_id):
                 ## This should never happen
                 return 'Invalid Device Id', 417
             else:
+                rebuild_image = (query.high_threshold != high_threshold or
+                                 query.low_threshold != low_threshold or
+                                 query.maximum != maximum or
+                                 query.minimum != minimum)
                 query.name = name
                 query.type = type
                 query.frame_rate = frame_rate
@@ -702,6 +791,8 @@ def show_device_setting(device_id):
                 query.notes = notes
                 query.high_threshold = high_threshold
                 query.low_threshold = low_threshold
+                query.maximum = maximum
+                query.minimum = minimum
                 query.units = units
                 query.updated = datetime.today()
 
@@ -710,6 +801,8 @@ def show_device_setting(device_id):
             ## Update the refresh rate in the remote device and reschedule
             ## the device just in case the refresh rate has changed.
             remote_device.set_refresh_rate(query.name, refresh_rate)
+            if (rebuild_image):
+                gauge_image.delete(device_id)
             schedule_device(query)
 
             return redirect("/device/{}".format(device_id))
@@ -720,7 +813,7 @@ def show_device_setting(device_id):
                     scheduler.remove_job(query.name)
                 db.session.delete(query)
                 db.session.commit()
-            return redirect("/")
+            return redirect('/')
     else:
         query = Device.query.filter(Device.id == device_id).one_or_none()
 
