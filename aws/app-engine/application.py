@@ -186,31 +186,41 @@ class GaugeImage:
                         radian = angle * math.pi / 180
                         x = int(hw * math.cos(radian)) + hw
                         y = int(hh * math.sin(radian)) + hh + 1
+
+                        ## Calculate the actual angle based on the x location
+                        actual = math.acos((x - hw) / hw) * 180 / math.pi
+
                         ## Top left
                         if (x < hw and y < hh):
-                            lx = x - 1
-                            rx = x + 6
-                            ty = y + 1
-                            by = y + 8
+                            xoffset = (180 - actual) / 90
+                            lx = x - int(8 * xoffset)
+                            ty = y
+                            ## For the pieslice angle
+                            actual = 360 - actual
                         ## Top right
                         elif (x >= hw and y < hh):
-                            lx = x - 4
-                            rx = x + 3
-                            ty = y + 2
-                            by = y + 9
+                            xoffset = actual / 90
+                            lx = (x - 10) + int(6 * xoffset)
+                            ty = y
+                            ## For the pieslice angle
+                            actual = 360 - actual
                         ## Bottom left
                         elif (x < hw and y >= hh):
-                            lx = x + 1
-                            rx = x + 8
-                            ty = y - 2
-                            by = y + 5
+                            xoffset = (180 - actual) / 90
+                            yoffset = (actual - 90) / 90
+                            lx = x + int(2 * xoffset)
+                            ty = (y - 10) + int(5 * yoffset)
                         ## Bottom right
                         else:
-                            lx = x - 9
-                            rx = x - 2
-                            ty = y - 2
-                            by = y + 5
-                        draw.ellipse([lx, ty, rx, by], fill=(255,0,0))
+                            xoffset = actual / 90
+                            yoffset = (90 - actual) / 90
+                            lx = (x - 10) - int(11 * xoffset)
+                            ty = (y - 10) + int(6 * yoffset)
+
+                        rx = lx + 10
+                        by = ty + 10
+                        draw.pieslice([lx, ty, rx, by], actual - 15,
+                                      actual + 15, fill=(255,0,0))
                 except Exception as err:
                     print("ERROR: " + err)
                     pass
