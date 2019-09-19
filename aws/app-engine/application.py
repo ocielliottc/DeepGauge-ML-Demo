@@ -805,6 +805,16 @@ def show_device_setting(device_id):
                 ## This should never happen
                 return 'Invalid Device Id', 417
             else:
+                ## Fix user input in case they inverted the lows and highs
+                if (float(minimum) > float(maximum)):
+                    mtmp = maximum
+                    maximum = minimum
+                    minimum = mtmp
+                if (float(low_threshold) > float(high_threshold)):
+                    ttmp = high_threshold
+                    high_threshold = low_threshold
+                    low_threshold = ttmp
+
                 rebuild_image = (query.high_threshold != high_threshold or
                                  query.low_threshold != low_threshold or
                                  query.maximum != maximum or
