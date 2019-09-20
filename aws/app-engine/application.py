@@ -167,13 +167,13 @@ class GaugeImage:
                     Digital.drawNumber(background, 39, 129,
                                        "{:2}".format(alert_low))
             else:
-                ## Check for NaN.  If it is, we want to have the needle point to
-                ## something below the lowest value, but not too far below.
-                if (value != value):
-                    value = low -.05
+                ## Check for NaN.
+                invalid = (value != value)
 
                 try:
-                    normalized = abs(value - low)
+                    ## If it is NaN, we want to have the needle point to
+                    ## something below the lowest value, but not too far below.
+                    normalized = abs(value - low) if (not invalid) else -.5
                     bname = self.image_dir + '/gauge_{0}-{1}.png'.format(low, high)
                     background = self.create_background(bname, low, high)
                     needle = Image.open(self.image_dir + '/needle.png')
