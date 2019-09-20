@@ -158,14 +158,14 @@ class GaugeImage:
                     Digital.line_width = 3
                     Digital.drawNumber(background, 40, 65, text)
 
-                    Digital.color = (255,0,0)
-                    Digital.height = 8
-                    Digital.width = 4
-                    Digital.line_width = 1
-                    Digital.drawNumber(background, 39, 39,
-                                       "{:2}".format(alert_high))
-                    Digital.drawNumber(background, 39, 129,
-                                       "{:2}".format(alert_low))
+                Digital.color = (255,0,0)
+                Digital.height = 8
+                Digital.width = 4
+                Digital.line_width = 1
+                Digital.drawNumber(background, 39, 39,
+                                   "{:2}".format(alert_high))
+                Digital.drawNumber(background, 39, 129,
+                                   "{:2}".format(alert_low))
             else:
                 ## Check for NaN.
                 invalid = (value != value)
