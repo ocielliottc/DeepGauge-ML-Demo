@@ -117,7 +117,7 @@ class GaugeImage:
         self.allow_generation = False
         self.digital = False
         self.needle_start = 132
-        self.font_offset = 8
+        self.font_offset = 6
         self.arc = 270
 
     def get_local_name(self, device_id):
@@ -136,7 +136,8 @@ class GaugeImage:
             draw = ImageDraw.Draw(background)
             font = ImageFont.truetype('Poppins-Regular.ttf', 10)
             for value in range(low, high + 1):
-                radian = ((value * self.arc / ((high - low) + 1)) +
+                normalized = abs(value - low)
+                radian = ((normalized * self.arc / (abs(high - low) + 1)) +
                          self.needle_start + self.font_offset) * math.pi / 180
                 x = int(((hw * 7) / 9) * math.cos(radian)) + hw - 5
                 y = int(((hh * 7) / 9) * math.sin(radian)) + hh - 5
@@ -171,17 +172,20 @@ class GaugeImage:
                     value = -.05
 
                 try:
+                    normalized = abs(value - low)
                     bname = self.image_dir + '/gauge_{0}-{1}.png'.format(low, high)
                     background = self.create_background(bname, low, high)
                     needle = Image.open(self.image_dir + '/needle.png')
-                    needle = needle.rotate(self.needle_start - (value * self.arc / ((high - low) + 1)))
+                    needle = needle.rotate(self.needle_start -
+                                           (normalized * self.arc / (abs(high - low) + 1)))
                     background.paste(needle, (0, 0), needle)
 
                     hw = background.size[0] / 2
                     hh = background.size[1] / 2
                     draw = ImageDraw.Draw(background)
                     for value in [ alert_low, alert_high ]:
-                        angle = ((value * self.arc / ((high - low) + 1)) +
+                        normalized = abs(value - low)
+                        angle = ((normalized * self.arc / (abs(high - low) + 1)) +
                                  self.needle_start + self.font_offset)
                         radian = angle * math.pi / 180
                         x = int(hw * math.cos(radian)) + hw
@@ -414,9 +418,10 @@ def pull_reading(device):
     ## Return time time of the last reading (could be None)
     return values[2]
 
-def schedule_device(device):
-    ## This should be done for all real devices.  The device name
-    ## corresponds to the name provided during provisioning.
+def schedule_device(device, delete_image):
+    ## Pull the reading from the device
+    if (delete_image):
+        gauge_image.delete(device.id)
     last_time = pull_reading(device.id)
 
     if (last_time is None):
@@ -491,8 +496,7 @@ def make_database():
         d.image = gauge_image.get_name(d.id)
         db.session.commit()
 
-        gauge_image.delete(d.id)
-        schedule_device(d)
+        schedule_device(d, True)
 
     return True
 
@@ -553,7 +557,7 @@ def login():
 
         query = Device.query.filter(Device.id_user == current_user.get_id()).all()
         for device in query:
-            schedule_device(device)
+            schedule_device(device, False)
 
         return redirect('/')
     else:
@@ -733,8 +737,7 @@ def new_device():
     db.session.commit()
 
     ## Delete the image (if it exists) and schedule the device to be polled
-    gauge_image.delete(device.id)
-    schedule_device(device)
+    schedule_device(device, True)
 
     # Redirect to the device page.
     return redirect("/device/setting/{}".format(device.id), code=302)
@@ -824,7 +827,10 @@ def show_device_setting(device_id):
                     ttmp = high_threshold
                     high_threshold = low_threshold
                     low_threshold = ttmp
-
+                if (float(low_threshold) < float(minimum)):
+                    low_threshold = minimum
+                if (float(high_threshold) > float(maximum)):
+                    high_threshold = maximum
                 rebuild_image = (query.high_threshold != high_threshold or
                                  query.low_threshold != low_threshold or
                                  query.maximum != maximum or
@@ -846,9 +852,7 @@ def show_device_setting(device_id):
             ## Update the refresh rate in the remote device and reschedule
             ## the device just in case the refresh rate has changed.
             remote_device.set_refresh_rate(query.name, refresh_rate)
-            if (rebuild_image):
-                gauge_image.delete(device_id)
-            schedule_device(query)
+            schedule_device(query, rebuild_image)
 
             return redirect("/device/{}".format(device_id))
         else:
@@ -872,7 +876,9 @@ def show_device_setting(device_id):
             data = schema.dump(query)
 
         names = remote_device.get_kinesis_streams()
-        return render_template('setting_device.html', device=data, names=names)
+        time = datetime.today().strftime('%Y-%m-%dT%H:%M:%S')
+        return render_template('setting_device.html', device=data, names=names,
+                               load=time)
 
 @app.errorhandler(500)
 def server_error(e):
