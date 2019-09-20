@@ -168,9 +168,9 @@ class GaugeImage:
                                        "{:2}".format(alert_low))
             else:
                 ## Check for NaN.  If it is, we want to have the needle point to
-                ## something below 0, but not too far below 0.
+                ## something below the lowest value, but not too far below.
                 if (value != value):
-                    value = -.05
+                    value = low -.05
 
                 try:
                     normalized = abs(value - low)
@@ -786,8 +786,15 @@ def one_device(device_id):
     messages = []
     notifications = Notification.query.filter(Notification.id_user == current_user.get_id() and Notification.id_device == device_id).all()
     for notification in notifications:
-        messages.append(notification.updated.strftime('%Y-%m-%dT%H:%M:%S') +
-                        ': ' + notification.text)
+        ## This if check shouldn't be necessary, but the query filter doesn't
+        ## seem to filter out notifications for other devices
+        if (notification.id_device == device_id):
+          messages.append(notification.updated.strftime('%Y-%m-%dT%H:%M:%S') +
+                          ': ' + notification.text)
+
+    ## Adjust the image name so that we force the browser to not use
+    ## the cache to load the image
+    data['image'] = data['image'] + "?load=" + datetime.today().strftime('%Y-%m-%dT%H:%M:%S')
 
     return render_template('one_device.html',
                            device=data, reading=reading, rdata=rdata,
@@ -876,10 +883,12 @@ def show_device_setting(device_id):
             schema = DeviceSchema()
             data = schema.dump(query)
 
+        ## Adjust the image name so that we force the browser to not use
+        ## the cache to load the image
+        data['image'] = data['image'] + "?load=" + datetime.today().strftime('%Y-%m-%dT%H:%M:%S')
+
         names = remote_device.get_kinesis_streams()
-        time = datetime.today().strftime('%Y-%m-%dT%H:%M:%S')
-        return render_template('setting_device.html', device=data, names=names,
-                               load=time)
+        return render_template('setting_device.html', device=data, names=names)
 
 @app.errorhandler(500)
 def server_error(e):
