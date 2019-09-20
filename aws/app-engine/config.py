@@ -18,7 +18,7 @@ sqlite_url = "sqlite:///:memory:"
 
 
 # Configure the SqlAlchemy part of the app instance
-application.config["SQLALCHEMY_ECHO"] = True
+application.config["SQLALCHEMY_ECHO"] = False
 application.config["SQLALCHEMY_DATABASE_URI"] = sqlite_url
 application.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 application.config['PROJECT'] = "dashboard"
