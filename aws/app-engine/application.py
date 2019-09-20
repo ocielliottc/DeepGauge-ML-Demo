@@ -150,20 +150,21 @@ class GaugeImage:
             if (self.digital):
                 background = Image.open(self.image_dir + '/digital.png')
                 if (value == value):
+                    text = "{:5.1f}".format(value)
+                    tlen = len(text)
                     Digital.height = 46
-                    Digital.width = 26
+                    Digital.width = 19 if (tlen <= 5) else int((110 / tlen) - 3)
                     Digital.color = (0,0,0)
                     Digital.line_width = 3
-                    Digital.drawNumber(background, 45, 65,
-                                       "{:4.1f}".format(value))
+                    Digital.drawNumber(background, 40, 65, text)
 
                     Digital.color = (255,0,0)
                     Digital.height = 8
                     Digital.width = 4
-                    Digital.line_width = 2
-                    Digital.drawNumber(background, 126, 39,
+                    Digital.line_width = 1
+                    Digital.drawNumber(background, 39, 39,
                                        "{:2}".format(alert_high))
-                    Digital.drawNumber(background, 126, 129,
+                    Digital.drawNumber(background, 39, 129,
                                        "{:2}".format(alert_low))
             else:
                 ## Check for NaN.  If it is, we want to have the needle point to
