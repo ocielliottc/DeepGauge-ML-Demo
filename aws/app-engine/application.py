@@ -763,16 +763,17 @@ def one_device(device_id):
       if (first):
           first = False
           rdata['date'] = timestamp.strftime('%B %d, %Y')
-      key = timestamp.strftime('%H:%M:%S')
+      key = timestamp.strftime('%Y-%m-%dT%H:%M:%S')
       rdata['readings'][key] = [str(readings[timestamp][0]), False]
 
     query_reading = Reading.query.filter(Reading.id_device == device_id).all()
     if query_reading is not None and len(query_reading) > 0:
         ## Look for alert level readings set the flag to True
         for r in query_reading:
-          if (r.alert and key in rdata['readings']):
-              key = r.timestamp.strftime('%H:%M:%S')
-              rdata['readings'][key][1] = True
+          if (r.alert):
+              key = r.timestamp.strftime('%Y-%m-%dT%H:%M:%S')
+              if (key in rdata['readings']):
+                  rdata['readings'][key][1] = True
 
         # Serialize the data for the response
         schema = ReadingSchema()
