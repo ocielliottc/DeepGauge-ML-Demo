@@ -23,7 +23,7 @@ for(var i = 0; i < labels.length; i++) {
 var xTicks = 5
 
 // Set the dimensions and margins of the graph
-var margin = {top: 10, right: 30, bottom: 35, left: 35},
+var margin = {top: 10, right: 30, bottom: 35, left: 40},
     width = 360 - margin.left - margin.right,
     height = 150 - margin.top - margin.bottom;
 

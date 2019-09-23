@@ -797,6 +797,11 @@ def one_device(device_id):
     ## the cache to load the image
     data['image'] = data['image'] + "?load=" + datetime.today().strftime('%Y-%m-%dT%H:%M:%S')
 
+    ## If there aren't any readings, fill in the label information with
+    ## some defaults
+    if (not rdata['date']):
+      rdata['date'] = datetime.today().strftime('%B %d, %Y')
+
     return render_template('one_device.html',
                            device=data, reading=reading, rdata=rdata,
                            messages=messages)
