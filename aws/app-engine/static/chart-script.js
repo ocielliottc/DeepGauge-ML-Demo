@@ -19,6 +19,9 @@ for(var i = 0; i < labels.length; i++) {
                        value: alerts[i] });
 }
 
+// This value keeps the x-axis from getting crowded
+var xTicks = 5
+
 // Set the dimensions and margins of the graph
 var margin = {top: 10, right: 30, bottom: 35, left: 35},
     width = 360 - margin.left - margin.right,
@@ -39,7 +42,7 @@ var x = d3.scaleTime()
   .range([ 0, width ]);
 var xAxis = svg.append("g")
   .attr("transform", "translate(0," + height + ")")
-  .call(d3.axisBottom(x));
+  .call(d3.axisBottom(x).ticks(xTicks))
 
 // Add Y axis
 var y = d3.scaleLinear()
@@ -121,7 +124,7 @@ function updateChart() {
   }
 
   // Update axis and line positions
-  xAxis.transition().duration(1000).call(d3.axisBottom(x))
+  xAxis.transition().duration(1000).call(d3.axisBottom(x).ticks(xTicks))
   lines.forEach(function(item) {
     line.select('.' + item.name)
         .transition()
@@ -137,7 +140,7 @@ function updateChart() {
 // If the user double clicks, reinitialize the chart
 svg.on("dblclick",function(){
   x.domain(d3.extent(lines[0].data, function(d) { return d.date; }))
-  xAxis.transition().call(d3.axisBottom(x))
+  xAxis.transition().call(d3.axisBottom(x).ticks(xTicks))
   lines.forEach(function(item) {
     line.select('.' + item.name)
         .transition()
