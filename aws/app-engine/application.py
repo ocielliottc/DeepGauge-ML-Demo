@@ -37,6 +37,8 @@ default_settings = {
              'refresh_rate': '30',
              'dashboard_refresh_rate': '5',
              'gauge_display': 'analog',
+             'minimum': 0,
+             'maximum': 15,
             }
 }
 
@@ -470,10 +472,10 @@ def make_database():
             frame_rate      = default_settings['device']['frame_rate'],
             refresh_rate    = remote_device.get_refresh_rate(dev_name),
             notes           = "Camera attached to a RaspberryPi",
-            high_threshold  = 15,
-            low_threshold   = 0,
-            maximum         = 15,
-            minimum         = 0,
+            high_threshold  = default_settings['device']['maximum'],
+            low_threshold   = default_settings['device']['minimum'],
+            maximum         = default_settings['device']['maximum'],
+            minimum         = default_settings['device']['minimum'],
             units           = "psi"
         )
 
@@ -721,10 +723,10 @@ def new_device():
         frame_rate      = settings['frame_rate'],
         refresh_rate    = settings['refresh_rate'],
         notes           = "",
-        high_threshold  = 15,
-        low_threshold   = 0,
-        maximum         = 15,
-        minimum         = 0,
+        high_threshold  = default_settings['device']['maximum'],
+        low_threshold   = default_settings['device']['minimum'],
+        maximum         = default_settings['device']['maximum'],
+        minimum         = default_settings['device']['minimum'],
         units           = ""
     )
 
@@ -780,16 +782,21 @@ def one_device(device_id):
         index = len(query_reading) - 1
         reading = schema.dump(query_reading[index])
 
-    # Otherwise, nope, didn't find that reading
+    # Otherwise, there aren't any readings for this device
     else:
         reading = []
 
+    ## Pull out the alert messages that were sent and only include the ones
+    ## from today.
     messages = []
+    today = datetime.today()
+    message_start = datetime(today.year, today.month, today.day, 0, 0, 0)
     notifications = Notification.query.filter(Notification.id_user == current_user.get_id() and Notification.id_device == device_id).all()
     for notification in notifications:
         ## This if check shouldn't be necessary, but the query filter doesn't
         ## seem to filter out notifications for other devices
-        if (notification.id_device == device_id):
+        if (notification.id_device == device_id and
+            notification.updated >= message_start):
           messages.append(notification.updated.strftime('%Y-%m-%dT%H:%M:%S') +
                           ': ' + notification.text)
 
