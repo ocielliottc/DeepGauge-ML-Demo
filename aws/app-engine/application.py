@@ -128,109 +128,118 @@ class GaugeImage:
     def get_name(self, device_id):
         return '/' + self.get_local_name(device_id)
 
-    def create_background(self, bname, low, high):
+    def create_background(self, dtype, bname, low, high):
         if (os.path.exists(bname)):
             return Image.open(bname)
         else:
-            background = Image.open(self.image_dir + '/gauge.png')
-            hw = background.size[0] / 2
-            hh = background.size[1] / 2
-            draw = ImageDraw.Draw(background)
-            font = ImageFont.truetype('Poppins-Regular.ttf', 10)
-            for value in range(low, high + 1):
-                normalized = abs(value - low)
-                radian = ((normalized * self.arc / (abs(high - low) + 1)) +
-                         self.needle_start + self.font_offset) * math.pi / 180
-                x = int(((hw * 7) / 9) * math.cos(radian)) + hw - 5
-                y = int(((hh * 7) / 9) * math.sin(radian)) + hh - 5
-                draw.text((x, y), str(value), font=font, fill=(0,0,0))
+            if (dtype == 'BallValve'):
+                background = Image.open(self.image_dir + '/valve_open.png')
+            else:
+                background = Image.open(self.image_dir + '/gauge.png')
+                hw = background.size[0] / 2
+                hh = background.size[1] / 2
+                draw = ImageDraw.Draw(background)
+                font = ImageFont.truetype('Poppins-Regular.ttf', 10)
+                for value in range(low, high + 1):
+                    normalized = abs(value - low)
+                    radian = ((normalized * self.arc / (abs(high - low) + 1)) +
+                             self.needle_start + self.font_offset) * math.pi / 180
+                    x = int(((hw * 7) / 9) * math.cos(radian)) + hw - 5
+                    y = int(((hh * 7) / 9) * math.sin(radian)) + hh - 5
+                    draw.text((x, y), str(value), font=font, fill=(0,0,0))
             background.save(bname)
             return background
 
-    def create(self, device_id, low, high, value, alert_low, alert_high):
+    def create(self, device_id, dtype, low, high, value, alert_low, alert_high):
         if (self.allow_generation):
-            if (self.digital):
-                background = Image.open(self.image_dir + '/digital.png')
-                if (value == value):
-                    text = "{:5.1f}".format(value)
-                    tlen = len(text)
-                    Digital.height = 46
-                    Digital.width = 19 if (tlen <= 5) else int((110 / tlen) - 3)
-                    Digital.color = (0,0,0)
-                    Digital.line_width = 3
-                    Digital.drawNumber(background, 40, 65, text)
-
-                Digital.color = (255,0,0)
-                Digital.height = 8
-                Digital.width = 4
-                Digital.line_width = 1
-                Digital.drawNumber(background, 39, 39,
-                                   "{:2}".format(alert_high))
-                Digital.drawNumber(background, 39, 129,
-                                   "{:2}".format(alert_low))
+            if (dtype == 'BallValve'):
+                if (value == 0):
+                    background = Image.open(self.image_dir + '/valve_closed.png')
+                else:
+                    background = Image.open(self.image_dir + '/valve_open.png')
             else:
-                ## Check for NaN.
-                invalid = (value != value)
+                if (self.digital):
+                    background = Image.open(self.image_dir + '/digital.png')
+                    if (value == value):
+                        text = "{:5.1f}".format(value)
+                        tlen = len(text)
+                        Digital.height = 46
+                        Digital.width = 19 if (tlen <= 5) else int((110 / tlen) - 3)
+                        Digital.color = (0,0,0)
+                        Digital.line_width = 3
+                        Digital.drawNumber(background, 40, 65, text)
 
-                try:
-                    ## If it is NaN, we want to have the needle point to
-                    ## something below the lowest value, but not too far below.
-                    normalized = abs(value - low) if (not invalid) else -.5
-                    bname = self.image_dir + '/gauge_{0}-{1}.png'.format(low, high)
-                    background = self.create_background(bname, low, high)
-                    needle = Image.open(self.image_dir + '/needle.png')
-                    needle = needle.rotate(self.needle_start -
-                                           (normalized * self.arc / (abs(high - low) + 1)))
-                    background.paste(needle, (0, 0), needle)
+                    Digital.color = (255,0,0)
+                    Digital.height = 8
+                    Digital.width = 4
+                    Digital.line_width = 1
+                    Digital.drawNumber(background, 39, 39,
+                                       "{:2}".format(alert_high))
+                    Digital.drawNumber(background, 39, 129,
+                                       "{:2}".format(alert_low))
+                else:
+                    ## Check for NaN.
+                    invalid = (value != value)
 
-                    hw = background.size[0] / 2
-                    hh = background.size[1] / 2
-                    draw = ImageDraw.Draw(background)
-                    for value in [ alert_low, alert_high ]:
-                        normalized = abs(value - low)
-                        angle = ((normalized * self.arc / (abs(high - low) + 1)) +
-                                 self.needle_start + self.font_offset)
-                        radian = angle * math.pi / 180
-                        x = int(hw * math.cos(radian)) + hw
-                        y = int(hh * math.sin(radian)) + hh + 1
+                    try:
+                        ## If it is NaN, we want to have the needle point to
+                        ## something below the lowest value, but not too far below.
+                        normalized = abs(value - low) if (not invalid) else -.5
+                        bname = self.image_dir + '/gauge_{0}-{1}.png'.format(low, high)
+                        background = self.create_background(dtype, bname, low, high)
+                        needle = Image.open(self.image_dir + '/needle.png')
+                        needle = needle.rotate(self.needle_start -
+                                               (normalized * self.arc / (abs(high - low) + 1)))
+                        background.paste(needle, (0, 0), needle)
 
-                        ## Calculate the actual angle based on the x location
-                        actual = math.acos((x - hw) / hw) * 180 / math.pi
+                        hw = background.size[0] / 2
+                        hh = background.size[1] / 2
+                        draw = ImageDraw.Draw(background)
+                        for value in [ alert_low, alert_high ]:
+                            normalized = abs(value - low)
+                            angle = ((normalized * self.arc / (abs(high - low) + 1)) +
+                                     self.needle_start + self.font_offset)
+                            radian = angle * math.pi / 180
+                            x = int(hw * math.cos(radian)) + hw
+                            y = int(hh * math.sin(radian)) + hh + 1
 
-                        ## Top left
-                        if (x < hw and y < hh):
-                            xoffset = (180 - actual) / 90
-                            lx = x - int(8 * xoffset)
-                            ty = y
-                            ## For the pieslice angle
-                            actual = 360 - actual
-                        ## Top right
-                        elif (x >= hw and y < hh):
-                            xoffset = actual / 90
-                            lx = (x - 10) + int(6 * xoffset)
-                            ty = y
-                            ## For the pieslice angle
-                            actual = 360 - actual
-                        ## Bottom left
-                        elif (x < hw and y >= hh):
-                            xoffset = (180 - actual) / 90
-                            yoffset = (actual - 90) / 90
-                            lx = x + int(2 * xoffset)
-                            ty = (y - 10) + int(5 * yoffset)
-                        ## Bottom right
-                        else:
-                            xoffset = actual / 90
-                            yoffset = (90 - actual) / 90
-                            lx = (x - 10) - int(11 * xoffset)
-                            ty = (y - 10) + int(6 * yoffset)
+                            ## Calculate the actual angle based on the x location
+                            actual = math.acos((x - hw) / hw) * 180 / math.pi
 
-                        rx = lx + 10
-                        by = ty + 10
-                        draw.pieslice([lx, ty, rx, by], actual - 15,
-                                      actual + 15, fill=(255,0,0))
-                except Exception as err:
-                    print("ERROR: " + err)
-                    pass
+                            ## Top left
+                            if (x < hw and y < hh):
+                                xoffset = (180 - actual) / 90
+                                lx = x - int(8 * xoffset)
+                                ty = y
+                                ## For the pieslice angle
+                                actual = 360 - actual
+                            ## Top right
+                            elif (x >= hw and y < hh):
+                                xoffset = actual / 90
+                                lx = (x - 10) + int(6 * xoffset)
+                                ty = y
+                                ## For the pieslice angle
+                                actual = 360 - actual
+                            ## Bottom left
+                            elif (x < hw and y >= hh):
+                                xoffset = (180 - actual) / 90
+                                yoffset = (actual - 90) / 90
+                                lx = x + int(2 * xoffset)
+                                ty = (y - 10) + int(5 * yoffset)
+                            ## Bottom right
+                            else:
+                                xoffset = actual / 90
+                                yoffset = (90 - actual) / 90
+                                lx = (x - 10) - int(11 * xoffset)
+                                ty = (y - 10) + int(6 * yoffset)
+
+                            rx = lx + 10
+                            by = ty + 10
+                            draw.pieslice([lx, ty, rx, by], actual - 15,
+                                          actual + 15, fill=(255,0,0))
+                    except Exception as err:
+                        print("ERROR: " + err)
+                        pass
 
             background.save(self.get_local_name(device_id))
 
@@ -318,7 +327,6 @@ class RemoteDevice:
                     shard_it = out["NextShardIterator"]
         except Exception as err:
           print("ERROR: " + str(err))
-          pass
 
         return readings
 
@@ -390,7 +398,7 @@ def pull_reading(device):
     gauge_high = update_device.maximum
     name = update_device.name
     values = remote_device.get_last_reading(name)
-    gauge_image.create(device, gauge_low, gauge_high, values[0],
+    gauge_image.create(device, update_device.type, gauge_low, gauge_high, values[0],
                        update_device.low_threshold,update_device.high_threshold)
 
     ## Check the thresholds and send an SMS message, if necessary
@@ -399,7 +407,10 @@ def pull_reading(device):
     if (values[0] != values[0]):
         prediction = "UNDETERMINED"
     else:
-        prediction = str(values[0]) + " " + update_device.units
+        if (update_device.type == 'BallValve'):
+            prediction = 'Closed' if (values[0] == 0) else 'Open'
+        else:
+            prediction = str(values[0]) + " " + update_device.units
     accuracy = str(values[1]) + "%"
 
     schema = ReadingSchema()
@@ -415,7 +426,8 @@ def pull_reading(device):
     db.session.commit()
 
     update_device.prediction = prediction
-    update_device.updated = datetime.today()
+    if (values[2] is not None):
+        update_device.updated = values[2]
     db.session.commit()
 
     ## Return time time of the last reading (could be None)
