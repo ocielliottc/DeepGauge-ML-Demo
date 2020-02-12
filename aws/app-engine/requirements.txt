@@ -1,11 +1,9 @@
-Flask_SQLAlchemy==2.4.0
-flask_marshmallow==0.10.1
-Flask==1.1.1
-Flask_Login==0.4.1
-connexion[swagger-ui]==2.3.0
 APScheduler==3.6.1
 boto3==1.9.199
-marshmallow-sqlalchemy==0.17.0
-Pillow==6.1.0
-scrypt==0.8.13
+Flask_Login==0.4.1
+flask_marshmallow==0.10.1
+Flask_SQLAlchemy==2.4.0
+Flask==1.1.1
 ip2geotools==0.1.5
+Pillow==7.0.0
+scrypt==0.8.13

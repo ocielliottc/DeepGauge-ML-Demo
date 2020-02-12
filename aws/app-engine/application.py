@@ -1,7 +1,7 @@
 # [START gae_python37_render_template]
 from flask import Flask, Response, request, json, render_template, current_app, redirect
 import base64, json, logging, os, boto3, scrypt
-from config import db, application, connex_app
+from config import db, application
 from models import *
 from datetime import datetime, timedelta
 from PIL import Image, ImageDraw, ImageFont
@@ -16,9 +16,6 @@ import os.path
 # But, since this was originally written without AWS in mind, it's referenced
 # as app throught this code.
 app = application
-
-# Read the swagger.yml file to configure the endpoints
-connex_app.add_api("swagger.yml")
 
 ## Scheduler to allow polling of the device readings
 scheduler = BackgroundScheduler()
