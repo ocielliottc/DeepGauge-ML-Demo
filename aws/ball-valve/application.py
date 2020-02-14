@@ -11,7 +11,6 @@
 # ******************************************************************
 
 import json, boto3, time, sys
-from bson import ObjectId
 from test_valve import ValveCamera
 from datetime import datetime
 
