@@ -69,6 +69,8 @@
             <label for="url">Refresh Rate</label>
             <select class="custom-select" name="refresh_rate">
               <option>Choose...</option>
+              <option value="5"{% if device.refresh_rate == "5" %} selected{% endif %}>5 seconds</option>
+              <option value="15"{% if device.refresh_rate == "15" %} selected{% endif %}>15 seconds</option>
               <option value="30"{% if device.refresh_rate == "30" %} selected{% endif %}>30 seconds</option>
               <option value="60"{% if device.refresh_rate == "60" %} selected{% endif %}>1 minute</option>
               <option value="300"{% if device.refresh_rate == "300" %} selected{% endif %}>5 minutes</option>
